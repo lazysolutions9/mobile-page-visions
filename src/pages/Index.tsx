@@ -4,9 +4,10 @@ import LoginPage from '../components/LoginPage';
 import SignupPage from '../components/SignupPage';
 import RoleSelection from '../components/RoleSelection';
 import SellerSetup from '../components/SellerSetup';
+import SellerDashboard from '../components/SellerDashboard';
 
 const Index = () => {
-  const [currentPage, setCurrentPage] = useState<'login' | 'signup' | 'roleSelection' | 'sellerSetup' | 'buyerDashboard'>('login');
+  const [currentPage, setCurrentPage] = useState<'login' | 'signup' | 'roleSelection' | 'sellerSetup' | 'sellerDashboard' | 'buyerDashboard'>('login');
 
   const handleSignupComplete = () => {
     setCurrentPage('roleSelection');
@@ -23,7 +24,7 @@ const Index = () => {
 
   const handleSellerSetupComplete = () => {
     console.log('Seller setup completed');
-    // Navigate to seller dashboard or main app
+    setCurrentPage('sellerDashboard');
   };
 
   return (
@@ -42,6 +43,9 @@ const Index = () => {
       )}
       {currentPage === 'sellerSetup' && (
         <SellerSetup onSetupComplete={handleSellerSetupComplete} />
+      )}
+      {currentPage === 'sellerDashboard' && (
+        <SellerDashboard />
       )}
       {currentPage === 'buyerDashboard' && (
         <div className="flex items-center justify-center min-h-screen">
