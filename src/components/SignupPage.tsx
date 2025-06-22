@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 
 interface SignupPageProps {
   onSwitchToLogin: () => void;
+  onSignupComplete: () => void;
 }
 
-const SignupPage = ({ onSwitchToLogin }: SignupPageProps) => {
+const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,6 +18,8 @@ const SignupPage = ({ onSwitchToLogin }: SignupPageProps) => {
   const handleSignup = () => {
     console.log('Signup attempted with:', { username, password });
     // Handle signup logic here
+    // For now, we'll simulate successful signup
+    onSignupComplete();
   };
 
   return (
