@@ -3,9 +3,10 @@ import { useState } from 'react';
 import LoginPage from '../components/LoginPage';
 import SignupPage from '../components/SignupPage';
 import RoleSelection from '../components/RoleSelection';
+import SellerSetup from '../components/SellerSetup';
 
 const Index = () => {
-  const [currentPage, setCurrentPage] = useState<'login' | 'signup' | 'roleSelection'>('login');
+  const [currentPage, setCurrentPage] = useState<'login' | 'signup' | 'roleSelection' | 'sellerSetup' | 'buyerDashboard'>('login');
 
   const handleSignupComplete = () => {
     setCurrentPage('roleSelection');
@@ -13,7 +14,16 @@ const Index = () => {
 
   const handleRoleSelected = (role: 'buyer' | 'seller') => {
     console.log('User selected role:', role);
-    // Handle role selection - you can navigate to the main app or save the role
+    if (role === 'seller') {
+      setCurrentPage('sellerSetup');
+    } else {
+      setCurrentPage('buyerDashboard');
+    }
+  };
+
+  const handleSellerSetupComplete = () => {
+    console.log('Seller setup completed');
+    // Navigate to seller dashboard or main app
   };
 
   return (
@@ -29,6 +39,17 @@ const Index = () => {
       )}
       {currentPage === 'roleSelection' && (
         <RoleSelection onRoleSelected={handleRoleSelected} />
+      )}
+      {currentPage === 'sellerSetup' && (
+        <SellerSetup onSetupComplete={handleSellerSetupComplete} />
+      )}
+      {currentPage === 'buyerDashboard' && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Buyer Dashboard</h1>
+            <p className="text-gray-600">Welcome to the buyer experience!</p>
+          </div>
+        </div>
       )}
     </div>
   );
