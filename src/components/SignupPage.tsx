@@ -3,22 +3,71 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { supabase } from '@/lib/supabase';
+import { useToast } from './ui/use-toast';
 
 interface SignupPageProps {
   onSwitchToLogin: () => void;
-  onSignupComplete: () => void;
+  onSignupComplete: (user: any) => void;
 }
 
 const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
+  const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSignup = () => {
-    console.log('Signup attempted with:', { username, password });
-    // Handle signup logic here
-    // For now, we'll simulate successful signup
-    onSignupComplete();
+  const handleSignup = async () => {
+    // 1. Check if username already exists
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('user')
+      .select('username')
+      .eq('username', username)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found, which is good here
+      toast({
+        title: "Signup Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (existingUser) {
+      toast({
+        title: "Username Taken",
+        description: "This username is already in use. Please choose another one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 2. If username is available, proceed with signup
+    // WARNING: Storing passwords in plain text is a major security risk.
+    // This is for demonstration purposes only and should not be used in production.
+    const { data, error } = await supabase
+      .from('user')
+      .insert([{ username, password, isSeller: null }])
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: "Signup Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (data) {
+      toast({
+        title: "Signup Successful!",
+        description: "Please choose your role to continue.",
+      });
+      onSignupComplete(data);
+    }
   };
 
   return (

@@ -8,17 +8,18 @@ import { BuyerRequestDetailsPage } from './BuyerRequestDetailsPage';
 import { SellerDetailsModal } from './SellerDetailsModal';
 import { BuyerRequestsListPage } from './BuyerRequestsListPage';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
 
 interface BuyerDashboardProps {
-  userRole: 'buyer' | 'seller' | null;
+  user: any;
   onLogout: () => void;
   onSwitchToSeller?: () => void;
   onSellWithUs?: () => void;
 }
 
-const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: BuyerDashboardProps) => {
+const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: BuyerDashboardProps) => {
   const { toast } = useToast();
-  const [medicineName, setMedicineName] = useState('');
+  const [itemName, setItemName] = useState('');
   const [activeView, setActiveView] = useState('home');
   const [latestRequests, setLatestRequests] = useState([
     { id: 1, name: 'Aspirin', count: 5 },
@@ -28,28 +29,46 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
   const [selectedSeller, setSelectedSeller] = useState<any>(null);
   const [isSellerModalOpen, setSellerModalOpen] = useState(false);
 
-  const handleCreateRequest = () => {
-    if (!medicineName.trim()) {
+  const handleCreateRequest = async () => {
+    if (!itemName.trim()) {
       toast({
         title: "Request cannot be empty",
-        description: "Please enter a medicine name.",
+        description: "Please enter an item name.",
         variant: "destructive",
       });
       return;
     }
 
-    const newRequest = {
-      id: Date.now(),
-      name: medicineName,
-      count: 0,
-    };
-    
-    setLatestRequests(prev => [newRequest, ...prev]);
-    setMedicineName('');
-    toast({
-      title: "Request Created",
-      description: `Your request for "${medicineName}" has been sent.`,
-    })
+    const { data, error } = await supabase
+      .from('order')
+      .insert({
+        userId: user.id,
+        itemName: itemName.trim(),
+        category: 'Medical',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Error Creating Request",
+        description: "There was a problem submitting your request. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      const newRequest = {
+        id: data.id,
+        name: data.itemName,
+        count: 0, // This can be updated later if needed
+      };
+      setLatestRequests(prev => [newRequest, ...prev]);
+      setItemName('');
+      toast({
+        title: "Request Created",
+        description: `Your request for "${itemName}" has been sent.`,
+      });
+    }
   };
 
   const handleViewRequestDetails = (request: any) => {
@@ -102,9 +121,9 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
-              placeholder="Medicine Name"
-              value={medicineName}
-              onChange={(e) => setMedicineName(e.target.value)}
+              placeholder="Enter item name..."
+              value={itemName}
+              onChange={(e) => setItemName(e.target.value)}
             />
             <Button onClick={handleCreateRequest} className="w-full">
               Create Request
@@ -112,7 +131,7 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
           </CardContent>
         </Card>
         
-        {userRole === 'seller' && onSwitchToSeller && (
+        {user.isSeller && onSwitchToSeller && (
           <div className="text-center">
               <p className="text-sm text-gray-600 mb-2">You are viewing as a buyer.</p>
               <Button variant="outline" onClick={onSwitchToSeller} className="bg-white border-gray-300">

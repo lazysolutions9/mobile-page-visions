@@ -4,23 +4,55 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
+import { supabase } from '@/lib/supabase';
+import { useToast } from './ui/use-toast';
 
 interface LoginPageProps {
   onSwitchToSignup: () => void;
   onForgotPasswordContinue: () => void;
+  onLoginSuccess: (user: any) => void;
 }
 
-const LoginPage = ({ onSwitchToSignup, onForgotPasswordContinue }: LoginPageProps) => {
+const LoginPage = ({ onSwitchToSignup, onForgotPasswordContinue, onLoginSuccess }: LoginPageProps) => {
+  const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isForgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
-  const handleLogin = () => {
-    console.log('Login attempted with:', { username, password });
-    // Handle login logic here
-  };
+  const handleLogin = async () => {
+    // WARNING: This is a highly insecure way to handle login.
+    // It is for demonstration purposes only and should not be used in production.
+    const { data: user, error } = await supabase
+      .from('user')
+      .select('*')
+      .eq('username', username)
+      .single();
 
+    if (error || !user) {
+      toast({
+        title: "Login Error",
+        description: "Invalid username or password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (user.password === password) {
+      toast({
+        title: "Login Successful!",
+        description: "Welcome back!",
+      });
+      onLoginSuccess(user);
+    } else {
+      toast({
+        title: "Login Error",
+        description: "Invalid username or password.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   const handleContinue = () => {
     setForgotPasswordOpen(false);
     onForgotPasswordContinue();

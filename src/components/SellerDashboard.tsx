@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,32 +6,78 @@ import { Home, User, Bell, Package, Repeat } from 'lucide-react';
 import ProfilePage from './ProfilePage';
 import { SellerRequestDetailsModal } from './SellerRequestDetailsModal';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
 
 interface SellerDashboardProps {
+  user: any;
   onLogout: () => void;
   onSwitchToBuyer: () => void;
 }
 
-const SellerDashboard = ({ onLogout, onSwitchToBuyer }: SellerDashboardProps) => {
+const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardProps) => {
   const { toast } = useToast();
   const [activeView, setActiveView] = useState('home');
+  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+  const [acceptedRequests, setAcceptedRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for demonstration
-  const incomingRequests = [
-    { id: 1, type: 'New Request', customer: 'John Doe' },
-    { id: 2, type: 'Urgent Request', customer: 'Jane Smith' },
-    { id: 3, type: 'Standard Request', customer: 'Mike Johnson' },
-    { id: 4, type: 'Express Request', customer: 'Sarah Wilson', status: 'incoming', notes: 'Need this ASAP please.' },
-    { id: 5, type: 'Regular Request', customer: 'Tom Brown', status: 'incoming', notes: '' }
-  ];
+  const fetchOrders = async () => {
+    setLoading(true);
+    if (!user) {
+      toast({ title: "Authentication Error", description: "Could not authenticate user.", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
 
-  const acceptedRequests = [
-    { id: 1, type: 'Confirmed Order', customer: 'Alice Cooper', status: 'accepted', notes: 'Will be ready by 5pm.', date: '2023-10-27', time: '14:30' },
-    { id: 2, type: 'In Progress', customer: 'Bob Dylan', status: 'accepted', notes: '', date: '2023-10-27', time: '15:00' },
-    { id: 3, type: 'Ready for Pickup', customer: 'Carol King', status: 'accepted', notes: 'Ready for pickup at counter 3.', date: '2023-10-26', time: '18:00' }
-  ];
+    const [ordersResult, responsesResult] = await Promise.all([
+      supabase.from('order').select('*'),
+      supabase.from('sellerResponse').select('*').eq('seller_id', user.id)
+    ]);
+
+    const { data: allOrders, error: ordersError } = ordersResult;
+    const { data: sellerResponses, error: responsesError } = responsesResult;
+
+    if (ordersError) {
+      toast({ title: "Error", description: "Could not fetch orders.", variant: "destructive" });
+      setIncomingRequests([]);
+    } else {
+      const respondedOrderIds = new Set(responsesError ? [] : sellerResponses.map((res: any) => res.order_id));
+      const incoming = allOrders.filter((order: any) => !respondedOrderIds.has(order.id));
+      setIncomingRequests(incoming.map(req => ({ ...req, status: 'incoming' })));
+    }
+
+    if (responsesError) {
+      toast({ title: "Error", description: "Could not fetch your accepted requests.", variant: "destructive" });
+      setAcceptedRequests([]);
+    } else {
+      if (allOrders) {
+        const acceptedOrderIds = new Set(sellerResponses.map((res: any) => res.order_id));
+        const acceptedOrders = allOrders.filter((order: any) => acceptedOrderIds.has(order.id));
+
+        const acceptedMap = new Map(sellerResponses.map((res: any) => [res.order_id, res]));
+        const formattedAccepted = acceptedOrders.map((order: any) => ({
+          ...order,
+          notes: acceptedMap.get(order.id)?.notes || '',
+          status: 'accepted'
+        }));
+        setAcceptedRequests(formattedAccepted);
+      } else {
+        setAcceptedRequests([]);
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [user]);
+
+  const handleAccept = () => {
+    fetchOrders();
+    setIsModalOpen(false);
+  };
 
   const handleRequestClick = (request: any) => {
     setSelectedRequest(request);
@@ -44,8 +90,10 @@ const SellerDashboard = ({ onLogout, onSwitchToBuyer }: SellerDashboardProps) =>
         <Card key={request.id}>
           <CardContent className="p-4 flex justify-between items-center">
             <div>
-              <p className="font-medium">{request.type}</p>
-              <p className="text-sm text-muted-foreground">{request.customer}</p>
+              <p className="font-medium">{request.itemName}</p>
+              <p className="text-sm text-muted-foreground">
+                Requested on: {new Date(request.created_at).toLocaleDateString()}
+              </p>
             </div>
             <Button size="sm" onClick={() => handleRequestClick(request)}>{actionText}</Button>
           </CardContent>
@@ -89,7 +137,13 @@ const SellerDashboard = ({ onLogout, onSwitchToBuyer }: SellerDashboardProps) =>
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <SellerRequestDetailsModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} request={selectedRequest} />
+      <SellerRequestDetailsModal
+        isOpen={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        request={selectedRequest}
+        onAccept={handleAccept}
+        user={user}
+      />
       {/* Header */}
       <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
         <h1 className="text-xl font-bold">Seller Dashboard</h1>
