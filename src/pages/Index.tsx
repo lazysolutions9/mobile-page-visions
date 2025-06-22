@@ -5,6 +5,7 @@ import SignupPage from '../components/SignupPage';
 import RoleSelection from '../components/RoleSelection';
 import SellerSetup from '../components/SellerSetup';
 import SellerDashboard from '../components/SellerDashboard';
+import BuyerDashboard from '../components/BuyerDashboard';
 
 const Index = () => {
   const [currentPage, setCurrentPage] = useState<'login' | 'signup' | 'roleSelection' | 'sellerSetup' | 'sellerDashboard' | 'buyerDashboard'>('login');
@@ -48,12 +49,7 @@ const Index = () => {
         <SellerDashboard />
       )}
       {currentPage === 'buyerDashboard' && (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Buyer Dashboard</h1>
-            <p className="text-gray-600">Welcome to the buyer experience!</p>
-          </div>
-        </div>
+        <BuyerDashboard />
       )}
     </div>
   );
