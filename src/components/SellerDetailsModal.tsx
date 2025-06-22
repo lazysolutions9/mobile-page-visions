@@ -21,22 +21,23 @@ export function SellerDetailsModal({ isOpen, onOpenChange, seller }: SellerDetai
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{seller.shopName}</DialogTitle>
+          <DialogTitle>Shop Name</DialogTitle>
           <DialogDescription>
-            Seller Details
+          
+            {seller.shopName}
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div>
             <h4 className="font-semibold">Shop Address</h4>
             <p className="text-sm text-muted-foreground">
-              {seller.address || "123 Main St, Anytown, USA"}
+              {seller.shopAddress || "No address provided."}
             </p>
           </div>
           <div>
             <h4 className="font-semibold">Seller Notes</h4>
             <p className="text-sm text-muted-foreground">
-              {seller.notes || "We provide fast and friendly service!"}
+              {seller.notes || "No notes provided."}
             </p>
           </div>
         </div>

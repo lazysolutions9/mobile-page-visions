@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,13 +21,54 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
   const { toast } = useToast();
   const [itemName, setItemName] = useState('');
   const [activeView, setActiveView] = useState('home');
-  const [latestRequests, setLatestRequests] = useState([
-    { id: 1, name: 'Aspirin', count: 5 },
-    { id: 2, name: 'Paracetamol', count: 3 }
-  ]);
+  const [latestRequests, setLatestRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedSeller, setSelectedSeller] = useState<any>(null);
   const [isSellerModalOpen, setSellerModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchUserOrders = async () => {
+      if (!user) return;
+      const { data: orders, error: ordersError } = await supabase
+        .from('order')
+        .select('*')
+        .eq('userId', user.id);
+
+      if (ordersError) {
+        console.error('Error fetching user orders:', ordersError);
+        toast({
+          title: "Error",
+          description: "Could not fetch your requests.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const orderIds = orders.map(order => order.id);
+      const { data: responses, error: responsesError } = await supabase
+        .from('sellerResponse')
+        .select('orderId')
+        .in('orderId', orderIds);
+
+      if (responsesError) {
+        console.error('Error fetching response counts:', responsesError);
+      }
+
+      const responseCounts = (responses || []).reduce((acc: any, res) => {
+        acc[res.orderId] = (acc[res.orderId] || 0) + 1;
+        return acc;
+      }, {});
+
+      const formattedRequests = orders.map(order => ({
+        id: order.id,
+        name: order.itemName,
+        count: responseCounts[order.id] || 0,
+      }));
+      setLatestRequests(formattedRequests);
+    };
+
+    fetchUserOrders();
+  }, [user, toast]);
 
   const handleCreateRequest = async () => {
     if (!itemName.trim()) {
@@ -85,9 +126,9 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     if (activeView === 'profile') {
       return (
         <ProfilePage
+          user={user}
           userType="buyer"
           onLogout={onLogout}
-          onChangePassword={() => console.log('change password')}
           onSellWithUs={onSellWithUs}
         />
       );
@@ -96,6 +137,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     if (activeView === 'requests') {
       return (
         <BuyerRequestsListPage
+          user={user}
           onBack={() => setActiveView('home')}
           onViewRequestDetails={handleViewRequestDetails}
         />
@@ -151,12 +193,16 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
                 <span>Name</span>
                 <span>Count</span>
               </div>
-              {latestRequests.map((request) => (
-                <div key={request.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-100 cursor-pointer" onClick={() => handleViewRequestDetails(request)}>
-                  <span className="font-medium">{request.name}</span>
-                  <span className="text-muted-foreground">{request.count}</span>
-                </div>
-              ))}
+              {latestRequests.length > 0 ? (
+                latestRequests.map((request) => (
+                  <div key={request.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-100 cursor-pointer" onClick={() => handleViewRequestDetails(request)}>
+                    <span className="font-medium">{request.name}</span>
+                    <span className="text-muted-foreground">{request.count}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-4">You haven't made any requests yet.</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -168,17 +214,19 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     <div className="flex flex-col h-full bg-gray-50">
       <SellerDetailsModal isOpen={isSellerModalOpen} onOpenChange={setSellerModalOpen} seller={selectedSeller} />
       {/* Header */}
-      <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Buyer Dashboard</h1>
-        <Button variant="ghost" size="icon" onClick={() => {
-          toast({
-            title: "No new notifications",
-            description: "You're all caught up!",
-          })
-        }}>
-          <Bell size={20} />
-        </Button>
-      </header>
+      {activeView === 'home' && (
+        <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
+          <h1 className="text-xl font-bold">Buyer Dashboard</h1>
+          <Button variant="ghost" size="icon" onClick={() => {
+            toast({
+              title: "No new notifications",
+              description: "You're all caught up!",
+            })
+          }}>
+            <Bell size={20} />
+          </Button>
+        </header>
+      )}
 
       {/* Main Content */}
       {renderContent()}

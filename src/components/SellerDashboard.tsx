@@ -33,30 +33,21 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
 
     const [ordersResult, responsesResult] = await Promise.all([
       supabase.from('order').select('*'),
-      supabase.from('sellerResponse').select('*').eq('seller_id', user.id)
+      supabase.from('sellerResponse').select('*').eq('userId', user.id)
     ]);
 
     const { data: allOrders, error: ordersError } = ordersResult;
     const { data: sellerResponses, error: responsesError } = responsesResult;
 
-    if (ordersError) {
-      toast({ title: "Error", description: "Could not fetch orders.", variant: "destructive" });
-      setIncomingRequests([]);
-    } else {
-      const respondedOrderIds = new Set(responsesError ? [] : sellerResponses.map((res: any) => res.order_id));
-      const incoming = allOrders.filter((order: any) => !respondedOrderIds.has(order.id));
-      setIncomingRequests(incoming.map(req => ({ ...req, status: 'incoming' })));
-    }
-
     if (responsesError) {
       toast({ title: "Error", description: "Could not fetch your accepted requests.", variant: "destructive" });
       setAcceptedRequests([]);
     } else {
-      if (allOrders) {
-        const acceptedOrderIds = new Set(sellerResponses.map((res: any) => res.order_id));
+      if (allOrders && sellerResponses) {
+        const acceptedOrderIds = new Set(sellerResponses.map((res: any) => res.orderId));
         const acceptedOrders = allOrders.filter((order: any) => acceptedOrderIds.has(order.id));
 
-        const acceptedMap = new Map(sellerResponses.map((res: any) => [res.order_id, res]));
+        const acceptedMap = new Map(sellerResponses.map((res: any) => [res.orderId, res]));
         const formattedAccepted = acceptedOrders.map((order: any) => ({
           ...order,
           notes: acceptedMap.get(order.id)?.notes || '',
@@ -65,6 +56,19 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
         setAcceptedRequests(formattedAccepted);
       } else {
         setAcceptedRequests([]);
+      }
+    }
+
+    if (ordersError) {
+      toast({ title: "Error", description: "Could not fetch orders.", variant: "destructive" });
+      setIncomingRequests([]);
+    } else {
+      if (allOrders) {
+        const respondedOrderIds = new Set((sellerResponses || []).map((res: any) => res.orderId));
+        const incoming = allOrders.filter((order: any) => !respondedOrderIds.has(order.id));
+        setIncomingRequests(incoming.map(req => ({ ...req, status: 'incoming' })));
+      } else {
+        setIncomingRequests([]);
       }
     }
     setLoading(false);
@@ -106,9 +110,9 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
     if (activeView === 'profile') {
       return (
         <ProfilePage
+          user={user}
           userType="seller"
           onLogout={onLogout}
-          onChangePassword={() => console.log('change password')}
         />
       );
     }

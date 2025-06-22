@@ -47,7 +47,7 @@ export function SellerRequestDetailsModal({ isOpen, onOpenChange, request, onAcc
 
     if (action === 'accept') {
       const { error } = await supabase.from('sellerResponse').insert([
-        { order_id: request.id, seller_id: user.id, notes: notes }
+        { orderId: request.id, userId: user.id, notes: notes }
       ]);
 
       if (error) {
@@ -58,7 +58,7 @@ export function SellerRequestDetailsModal({ isOpen, onOpenChange, request, onAcc
         onAccept();
       }
     } else if (action === 'update') {
-      const { error } = await supabase.from('sellerResponse').update({ notes }).eq('order_id', request.id).eq('seller_id', user.id);
+      const { error } = await supabase.from('sellerResponse').update({ notes }).eq('orderId', request.id).eq('userId', user.id);
 
       if (error) {
         toast({ title: "Error", description: "Could not update the request.", variant: "destructive" });
