@@ -1,24 +1,62 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Edit, LogOut, KeyRound, Store, ShieldCheck } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import { supabase } from '@/lib/supabase';
+import { useToast } from './ui/use-toast';
 
 interface ProfilePageProps {
+  user: any;
   userType: 'buyer' | 'seller';
   onLogout: () => void;
-  onChangePassword: () => void;
   onSellWithUs?: () => void;
 }
 
-const ProfilePage = ({ userType, onLogout, onChangePassword, onSellWithUs }: ProfilePageProps) => {
+const ProfilePage = ({ user, userType, onLogout, onSellWithUs }: ProfilePageProps) => {
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [shopName, setShopName] = useState('My Awesome Shop');
-  const [shopAddress, setShopAddress] = useState('123 Market St, San Francisco');
-  const [mobileNotes, setMobileNotes] = useState('555-123-4567');
+  const [shopName, setShopName] = useState('');
+  const [shopAddress, setShopAddress] = useState('');
+  const [notes, setNotes] = useState('');
   const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
+
+  useEffect(() => {
+    if (userType === 'seller' && user) {
+      const fetchSellerDetails = async () => {
+        const { data, error } = await supabase
+          .from('sellerDetails')
+          .select('*')
+          .eq('userId', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // Ignore 'exact one row' error if no details exist
+          console.error('Error fetching seller details:', error);
+        } else if (data) {
+          setShopName(data.shopName);
+          setShopAddress(data.shopAddress);
+          setNotes(data.notes);
+        }
+      };
+      fetchSellerDetails();
+    }
+  }, [user, userType]);
+
+  const handleUpdateDetails = async () => {
+    const { error } = await supabase
+      .from('sellerDetails')
+      .update({ shopName, shopAddress, notes })
+      .eq('userId', user.id);
+
+    if (error) {
+      toast({ title: 'Error', description: 'Could not update shop details.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Shop details updated.' });
+      setIsEditing(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -28,7 +66,7 @@ const ProfilePage = ({ userType, onLogout, onChangePassword, onSellWithUs }: Pro
           <CardTitle className="flex items-center gap-2">
             <User /> Username
           </CardTitle>
-          <CardDescription>johndoe</CardDescription>
+          <CardDescription>{user?.username || user?.email || 'N/A'}</CardDescription>
         </CardHeader>
       </Card>
 
@@ -55,9 +93,9 @@ const ProfilePage = ({ userType, onLogout, onChangePassword, onSellWithUs }: Pro
             </div>
             <div>
               <Label htmlFor="mobileNotes">Notes/Mobile No</Label>
-              <Input id="mobileNotes" value={mobileNotes} onChange={e => setMobileNotes(e.target.value)} disabled={!isEditing} />
+              <Input id="mobileNotes" value={notes} onChange={e => setNotes(e.target.value)} disabled={!isEditing} />
             </div>
-            {isEditing && <Button className="w-full" onClick={() => setIsEditing(false)}>Save</Button>}
+            {isEditing && <Button className="w-full" onClick={handleUpdateDetails}>Save</Button>}
           </CardContent>
         </Card>
       )}
@@ -72,7 +110,7 @@ const ProfilePage = ({ userType, onLogout, onChangePassword, onSellWithUs }: Pro
           <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => setChangePasswordOpen(true)}>
             <KeyRound /> Change Password
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-2 text-red-500" onClick={onLogout}>
+          <Button variant="ghost" className="w-full justify-start gap-2" onClick={onLogout}>
             <LogOut /> Logout
           </Button>
         </CardContent>

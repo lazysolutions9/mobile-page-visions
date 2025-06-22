@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,48 +8,108 @@ import { BuyerRequestDetailsPage } from './BuyerRequestDetailsPage';
 import { SellerDetailsModal } from './SellerDetailsModal';
 import { BuyerRequestsListPage } from './BuyerRequestsListPage';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
 
 interface BuyerDashboardProps {
-  userRole: 'buyer' | 'seller' | null;
+  user: any;
   onLogout: () => void;
   onSwitchToSeller?: () => void;
   onSellWithUs?: () => void;
 }
 
-const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: BuyerDashboardProps) => {
+const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: BuyerDashboardProps) => {
   const { toast } = useToast();
-  const [medicineName, setMedicineName] = useState('');
+  const [itemName, setItemName] = useState('');
   const [activeView, setActiveView] = useState('home');
-  const [latestRequests, setLatestRequests] = useState([
-    { id: 1, name: 'Aspirin', count: 5 },
-    { id: 2, name: 'Paracetamol', count: 3 }
-  ]);
+  const [latestRequests, setLatestRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedSeller, setSelectedSeller] = useState<any>(null);
   const [isSellerModalOpen, setSellerModalOpen] = useState(false);
 
-  const handleCreateRequest = () => {
-    if (!medicineName.trim()) {
+  useEffect(() => {
+    const fetchUserOrders = async () => {
+      if (!user) return;
+      const { data: orders, error: ordersError } = await supabase
+        .from('order')
+        .select('*')
+        .eq('userId', user.id);
+
+      if (ordersError) {
+        console.error('Error fetching user orders:', ordersError);
+        toast({
+          title: "Error",
+          description: "Could not fetch your requests.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const orderIds = orders.map(order => order.id);
+      const { data: responses, error: responsesError } = await supabase
+        .from('sellerResponse')
+        .select('orderId')
+        .in('orderId', orderIds);
+
+      if (responsesError) {
+        console.error('Error fetching response counts:', responsesError);
+      }
+
+      const responseCounts = (responses || []).reduce((acc: any, res) => {
+        acc[res.orderId] = (acc[res.orderId] || 0) + 1;
+        return acc;
+      }, {});
+
+      const formattedRequests = orders.map(order => ({
+        id: order.id,
+        name: order.itemName,
+        count: responseCounts[order.id] || 0,
+      }));
+      setLatestRequests(formattedRequests);
+    };
+
+    fetchUserOrders();
+  }, [user, toast]);
+
+  const handleCreateRequest = async () => {
+    if (!itemName.trim()) {
       toast({
         title: "Request cannot be empty",
-        description: "Please enter a medicine name.",
+        description: "Please enter an item name.",
         variant: "destructive",
       });
       return;
     }
 
-    const newRequest = {
-      id: Date.now(),
-      name: medicineName,
-      count: 0,
-    };
-    
-    setLatestRequests(prev => [newRequest, ...prev]);
-    setMedicineName('');
-    toast({
-      title: "Request Created",
-      description: `Your request for "${medicineName}" has been sent.`,
-    })
+    const { data, error } = await supabase
+      .from('order')
+      .insert({
+        userId: user.id,
+        itemName: itemName.trim(),
+        category: 'Medical',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Error Creating Request",
+        description: "There was a problem submitting your request. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      const newRequest = {
+        id: data.id,
+        name: data.itemName,
+        count: 0, // This can be updated later if needed
+      };
+      setLatestRequests(prev => [newRequest, ...prev]);
+      setItemName('');
+      toast({
+        title: "Request Created",
+        description: `Your request for "${itemName}" has been sent.`,
+      });
+    }
   };
 
   const handleViewRequestDetails = (request: any) => {
@@ -66,9 +126,9 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
     if (activeView === 'profile') {
       return (
         <ProfilePage
+          user={user}
           userType="buyer"
           onLogout={onLogout}
-          onChangePassword={() => console.log('change password')}
           onSellWithUs={onSellWithUs}
         />
       );
@@ -77,6 +137,7 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
     if (activeView === 'requests') {
       return (
         <BuyerRequestsListPage
+          user={user}
           onBack={() => setActiveView('home')}
           onViewRequestDetails={handleViewRequestDetails}
         />
@@ -102,9 +163,9 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
-              placeholder="Medicine Name"
-              value={medicineName}
-              onChange={(e) => setMedicineName(e.target.value)}
+              placeholder="Enter item name..."
+              value={itemName}
+              onChange={(e) => setItemName(e.target.value)}
             />
             <Button onClick={handleCreateRequest} className="w-full">
               Create Request
@@ -112,7 +173,7 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
           </CardContent>
         </Card>
         
-        {userRole === 'seller' && onSwitchToSeller && (
+        {user.isSeller && onSwitchToSeller && (
           <div className="text-center">
               <p className="text-sm text-gray-600 mb-2">You are viewing as a buyer.</p>
               <Button variant="outline" onClick={onSwitchToSeller} className="bg-white border-gray-300">
@@ -132,12 +193,16 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
                 <span>Name</span>
                 <span>Count</span>
               </div>
-              {latestRequests.map((request) => (
-                <div key={request.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-100 cursor-pointer" onClick={() => handleViewRequestDetails(request)}>
-                  <span className="font-medium">{request.name}</span>
-                  <span className="text-muted-foreground">{request.count}</span>
-                </div>
-              ))}
+              {latestRequests.length > 0 ? (
+                latestRequests.map((request) => (
+                  <div key={request.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-100 cursor-pointer" onClick={() => handleViewRequestDetails(request)}>
+                    <span className="font-medium">{request.name}</span>
+                    <span className="text-muted-foreground">{request.count}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-4">You haven't made any requests yet.</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -149,17 +214,19 @@ const BuyerDashboard = ({ userRole, onLogout, onSwitchToSeller, onSellWithUs }: 
     <div className="flex flex-col h-full bg-gray-50">
       <SellerDetailsModal isOpen={isSellerModalOpen} onOpenChange={setSellerModalOpen} seller={selectedSeller} />
       {/* Header */}
-      <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Buyer Dashboard</h1>
-        <Button variant="ghost" size="icon" onClick={() => {
-          toast({
-            title: "No new notifications",
-            description: "You're all caught up!",
-          })
-        }}>
-          <Bell size={20} />
-        </Button>
-      </header>
+      {activeView === 'home' && (
+        <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
+          <h1 className="text-xl font-bold">Buyer Dashboard</h1>
+          <Button variant="ghost" size="icon" onClick={() => {
+            toast({
+              title: "No new notifications",
+              description: "You're all caught up!",
+            })
+          }}>
+            <Bell size={20} />
+          </Button>
+        </header>
+      )}
 
       {/* Main Content */}
       {renderContent()}

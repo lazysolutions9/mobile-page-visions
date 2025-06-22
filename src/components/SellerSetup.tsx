@@ -2,30 +2,58 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/lib/supabase';
+import { useToast } from './ui/use-toast';
 
 interface SellerSetupProps {
+  user: any;
   onSetupComplete: () => void;
 }
 
-const SellerSetup = ({ onSetupComplete }: SellerSetupProps) => {
+const SellerSetup = ({ user, onSetupComplete }: SellerSetupProps) => {
+  const { toast } = useToast();
   const [shopName, setShopName] = useState('');
-  const [category, setCategory] = useState('');
-  const [address, setAddress] = useState('');
-  const [mobileNotes, setMobileNotes] = useState('');
+  const [shopAddress, setShopAddress] = useState('');
+  const [notes, setNotes] = useState('');
 
-  const handleSaveAddress = () => {
-    console.log('Seller setup:', { shopName, category, address, mobileNotes });
-    // Handle seller setup logic here
-    onSetupComplete();
+  const handleSaveDetails = async () => {
+    if (!shopName || !shopAddress) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill out all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from('sellerDetails').insert({
+      userId: user.id,
+      shopName,
+      category: 'Medical',
+      shopAddress,
+      notes,
+    });
+
+    if (error) {
+      console.error('Error saving seller details:', error);
+      toast({
+        title: "Database Error",
+        description: "Could not save your details. Please ensure you have the correct permissions and try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Shop Setup Complete!",
+        description: "Your seller profile is now active.",
+      });
+      onSetupComplete();
+    }
   };
 
   return (
     <div className="flex flex-col h-full p-6">
       <div className="text-center my-8">
-        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mb-4 mx-auto">
-          <span className="text-xl font-bold text-gray-600">4</span>
-        </div>
         <h1 className="text-2xl font-bold">Setup Your Shop</h1>
         <p className="text-muted-foreground">Tell us about your business</p>
       </div>
@@ -38,50 +66,38 @@ const SellerSetup = ({ onSetupComplete }: SellerSetupProps) => {
             type="text"
             value={shopName}
             onChange={(e) => setShopName(e.target.value)}
-            placeholder="Enter your shop name"
+            placeholder="e.g., City Pharmacy"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="category">Category</Label>
-          <Input
-            id="category"
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="What do you sell?"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
+          <Label htmlFor="address">Shop Address</Label>
           <Input
             id="address"
             type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Your business address"
+            value={shopAddress}
+            onChange={(e) => setShopAddress(e.target.value)}
+            placeholder="e.g., 123 Main St, Anytown"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="mobile-notes">Mobile No/Notes</Label>
-          <Input
-            id="mobile-notes"
-            type="text"
-            value={mobileNotes}
-            onChange={(e) => setMobileNotes(e.target.value)}
-            placeholder="Contact number or additional notes"
+          <Label htmlFor="notes">Notes (Optional)</Label>
+          <Textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g., Delivery available within 5km"
           />
         </div>
       </div>
 
       <div className="mt-auto pt-6">
         <Button
-          onClick={handleSaveAddress}
+          onClick={handleSaveDetails}
           className="w-full"
         >
-          Save Address
+          Complete Setup
         </Button>
       </div>
     </div>

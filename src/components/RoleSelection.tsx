@@ -11,7 +11,9 @@ const RoleSelection = ({ onRoleSelected }: RoleSelectionProps) => {
   const [selectedRole, setSelectedRole] = useState<'buyer' | 'seller' | null>(null);
 
   const handleContinue = () => {
+    console.log('Continue clicked. Selected role:', selectedRole);
     if (selectedRole) {
+      console.log('Calling onRoleSelected...');
       onRoleSelected(selectedRole);
     }
   };
