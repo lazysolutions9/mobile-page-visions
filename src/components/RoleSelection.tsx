@@ -1,6 +1,7 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface RoleSelectionProps {
   onRoleSelected: (role: 'buyer' | 'seller') => void;
@@ -16,65 +17,56 @@ const RoleSelection = ({ onRoleSelected }: RoleSelectionProps) => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen px-6 py-8 max-w-sm mx-auto">
-      {/* Header */}
-      <div className="text-center mb-12 mt-16">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Choose Your Role</h1>
-        <p className="text-gray-600">How would you like to use our platform?</p>
+    <div className="flex flex-col h-full p-6">
+      <div className="text-center my-12">
+        <h1 className="text-3xl font-bold">Choose Your Role</h1>
+        <p className="text-muted-foreground">How would you like to use our platform?</p>
       </div>
 
-      {/* Role Selection */}
-      <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 flex-1">
-        <div className="space-y-4">
-          {/* Buyer Option */}
-          <button
-            onClick={() => setSelectedRole('buyer')}
-            className={`w-full p-6 rounded-xl border-2 transition-all duration-200 ${
-              selectedRole === 'buyer'
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="text-center">
-              <div className="text-xl font-semibold text-gray-900 mb-2">
-                I am a buyer
-              </div>
-              <p className="text-gray-600 text-sm">
-                I want to browse and purchase products
-              </p>
-            </div>
-          </button>
+      <div className="space-y-4">
+        <Card
+          onClick={() => setSelectedRole('buyer')}
+          className={cn(
+            'cursor-pointer transition-all',
+            selectedRole === 'buyer' && 'border-primary ring-2 ring-primary'
+          )}
+        >
+          <CardHeader>
+            <CardTitle>I am a buyer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              I want to browse and purchase products
+            </p>
+          </CardContent>
+        </Card>
 
-          {/* Seller Option */}
-          <button
-            onClick={() => setSelectedRole('seller')}
-            className={`w-full p-6 rounded-xl border-2 transition-all duration-200 ${
-              selectedRole === 'seller'
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="text-center">
-              <div className="text-xl font-semibold text-gray-900 mb-2">
-                I am a seller
-              </div>
-              <p className="text-gray-600 text-sm">
-                I want to list and sell my products
-              </p>
-            </div>
-          </button>
-        </div>
+        <Card
+          onClick={() => setSelectedRole('seller')}
+          className={cn(
+            'cursor-pointer transition-all',
+            selectedRole === 'seller' && 'border-primary ring-2 ring-primary'
+          )}
+        >
+          <CardHeader>
+            <CardTitle>I am a seller</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              I want to list and sell my products
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Continue Button */}
-        <div className="mt-8">
-          <Button
-            onClick={handleContinue}
-            disabled={!selectedRole}
-            className="w-full h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] disabled:hover:scale-100"
-          >
-            Continue
-          </Button>
-        </div>
+      <div className="mt-auto pt-6">
+        <Button
+          onClick={handleContinue}
+          disabled={!selectedRole}
+          className="w-full"
+        >
+          Continue
+        </Button>
       </div>
     </div>
   );
