@@ -77,16 +77,16 @@ export function BuyerRequestDetailsPage({ request, onBack, onViewSeller }: Buyer
 
   return (
     <div className="flex flex-col h-full">
-      <header className="bg-white shadow-sm border-b p-4 flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft />
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold">Request Details</h1>
-          <p className="text-sm text-muted-foreground">{request.name} - Submitted 5 mins ago</p>
-        </div>
-      </header>
       <main className="flex-1 p-6 space-y-4 overflow-y-auto pb-24">
+        <div className="flex items-center gap-4 mb-4">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold">Request Details</h1>
+            <p className="text-sm text-muted-foreground">{request.name} - Submitted 5 mins ago</p>
+          </div>
+        </div>
         <h2 className="text-lg font-semibold">Seller Responses ({responses.length})</h2>
         <div className="space-y-4">
           {responses.length > 0 ? (

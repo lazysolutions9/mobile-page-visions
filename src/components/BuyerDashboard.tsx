@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Home, User, Bell, ShoppingCart } from 'lucide-react';
+import { Home, User, Bell, ShoppingCart, Search } from 'lucide-react';
 import ProfilePage from './ProfilePage';
 import { BuyerRequestDetailsPage } from './BuyerRequestDetailsPage';
 import { SellerDetailsModal } from './SellerDetailsModal';
@@ -158,7 +158,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     return (
       <main className="flex-1 p-6 space-y-6 overflow-y-auto pb-24">
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold">Welcome, {user?.username || 'there'}!</h2>
+          <h2 className="text-2xl font-bold">Welcome, {user?.username || 'Buyer'}!</h2>
           <p className="text-muted-foreground">Ready to create a new request?</p>
         </div>
         {/* Create Request Section */}
@@ -219,6 +219,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     <div className="flex flex-col h-full bg-gray-50">
       <SellerDetailsModal isOpen={isSellerModalOpen} onOpenChange={setSellerModalOpen} seller={selectedSeller} />
       
+      {/* Headers for different views */}
       {activeView === 'home' && (
         <header className="bg-white shadow-sm border-b p-4 flex items-center justify-center relative">
           <h1 className="text-xl font-bold">Home</h1>
@@ -235,11 +236,23 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
         </header>
       )}
       
+      {activeView === 'profile' && (
+        <header className="bg-white shadow-sm border-b p-4 text-center">
+          <h1 className="text-xl font-bold">Profile</h1>
+        </header>
+      )}
+      
+      {activeView === 'requests' && (
+        <header className="bg-white shadow-sm border-b p-4 text-center">
+          <h1 className="text-xl font-bold">Requests</h1>
+        </header>
+      )}
+      
       {/* Main Content */}
       {renderContent()}
 
-      {/* Bottom Navigation */}
-      <footer className="fixed bottom-0 w-full max-w-sm bg-white border-t p-2">
+      {/* Bottom Navigation - Always visible */}
+      <footer className="fixed bottom-0 w-full max-w-sm bg-white border-t p-2 z-50">
         <div className="flex justify-around items-center">
           <Button
             variant="ghost"
@@ -254,7 +267,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
             className={`flex flex-col items-center h-full space-y-1 ${activeView === 'requests' ? 'text-primary' : ''}`}
             onClick={() => setActiveView('requests')}
           >
-            <ShoppingCart size={24} />
+            <Search size={24} />
             <span className="text-xs font-medium">Requests</span>
           </Button>
           <Button

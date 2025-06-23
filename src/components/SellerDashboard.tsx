@@ -149,6 +149,7 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
         user={user}
       />
       
+      {/* Headers for different views */}
       {activeView === 'home' && (
         <header className="bg-white shadow-sm border-b p-4 flex items-center justify-center relative">
           <h1 className="text-xl font-bold">Dashboard</h1>
@@ -164,12 +165,18 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
           </div>
         </header>
       )}
+      
+      {activeView === 'profile' && (
+        <header className="bg-white shadow-sm border-b p-4 text-center">
+          <h1 className="text-xl font-bold">Profile</h1>
+        </header>
+      )}
 
       {/* Main Content */}
       {renderContent()}
 
-      {/* Bottom Navigation */}
-      <footer className="fixed bottom-0 w-full max-w-sm bg-white border-t p-2">
+      {/* Bottom Navigation - Always visible */}
+      <footer className="fixed bottom-0 w-full max-w-sm bg-white border-t p-2 z-50">
         <div className="flex justify-around items-center">
           <Button
             variant="ghost"

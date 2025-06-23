@@ -74,11 +74,8 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <header className="bg-white shadow-sm border-b p-4 text-center">
-        <h1 className="text-xl font-bold">Profile</h1>
-      </header>
       <main className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
-        <ChangePasswordModal isOpen={isChangePasswordOpen} onOpenChange={setChangePasswordOpen} />
+        <ChangePasswordModal isOpen={isChangePasswordOpen} onOpenChange={setChangePasswordOpen} user={user} />
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
