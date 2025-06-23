@@ -22,6 +22,8 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -32,7 +34,7 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
     }
 
     const [ordersResult, responsesResult] = await Promise.all([
-      supabase.from('order').select('*'),
+      supabase.from('order').select('*').order('created_at', { ascending: false }),
       supabase.from('sellerResponse').select('*').eq('userId', user.id)
     ]);
 
@@ -78,6 +80,33 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
     fetchOrders();
   }, [user]);
 
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setNotifications(data);
+      }
+    };
+    fetchNotifications();
+  }, [user]);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const markAllAsRead = async () => {
+    if (!user) return;
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+    setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+  };
+
   const handleAccept = () => {
     fetchOrders();
     setIsModalOpen(false);
@@ -86,6 +115,24 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
   const handleRequestClick = (request: any) => {
     setSelectedRequest(request);
     setIsModalOpen(true);
+  };
+
+  const handleNotificationClick = (notification: any) => {
+    // Find the request in incoming or accepted
+    const allRequests = [...incomingRequests, ...acceptedRequests];
+    const req = allRequests.find(r => r.id === notification.order_id);
+    if (req) {
+      setSelectedRequest(req);
+      setIsModalOpen(true);
+      setShowNotifications(false);
+    } else {
+      toast({ title: 'Request not found', description: 'This request is not available.' });
+    }
+    // Optionally mark as read
+    if (!notification.is_read) {
+      supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
+      setNotifications(notifications.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
+    }
   };
 
   const RequestList = ({ requests, actionText }: { requests: any[], actionText: string }) => (
@@ -118,7 +165,7 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
     }
 
     return (
-      <main className="flex-1 overflow-y-auto">
+      <main>
         <Tabs defaultValue="incoming" className="w-full">
           <TabsList className="grid w-full grid-cols-2 sticky top-0 bg-white z-10">
             <TabsTrigger value="incoming">
@@ -128,10 +175,10 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
               Accepted ({acceptedRequests.length})
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="incoming" className="p-6 space-y-4">
+          <TabsContent value="incoming" className="p-6 space-y-4 pb-24">
             <RequestList requests={incomingRequests} actionText="View" />
           </TabsContent>
-          <TabsContent value="accepted" className="p-6 space-y-4">
+          <TabsContent value="accepted" className="p-6 space-y-4 pb-24">
             <RequestList requests={acceptedRequests} actionText="Update" />
           </TabsContent>
         </Tabs>
@@ -148,24 +195,59 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
         onAccept={handleAccept}
         user={user}
       />
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Seller Dashboard</h1>
-        <Button variant="ghost" size="icon" onClick={() => {
-          toast({
-            title: "No new notifications",
-            description: "You're all caught up!",
-          })
-        }}>
-          <Bell size={20} />
-        </Button>
-      </header>
+      
+      {/* Headers for different views */}
+      {activeView === 'home' && (
+        <header className="bg-white shadow-sm border-b p-4 flex items-center justify-center relative">
+          <h1 className="text-xl font-bold">Dashboard</h1>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <div className="relative inline-block">
+              <Button variant="ghost" size="icon" onClick={() => setShowNotifications(v => !v)}>
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">{unreadCount}</span>
+                )}
+              </Button>
+              {showNotifications && (
+                <div className="fixed right-4 top-20 w-80 bg-white border rounded-xl shadow-2xl z-[1050] max-h-96 overflow-y-auto animate-fade-in">
+                  <div className="flex items-center justify-between p-3 border-b bg-gray-50 rounded-t-xl">
+                    <span className="font-semibold text-base">Notifications</span>
+                    <Button variant="link" size="sm" onClick={markAllAsRead} disabled={unreadCount === 0}>Mark all as read</Button>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-muted-foreground">No notifications</div>
+                  ) : (
+                    notifications.map(n => (
+                      <button
+                        key={n.id}
+                        className={`w-full text-left p-4 border-b last:border-b-0 transition-colors flex flex-col gap-1 focus:outline-none hover:bg-gray-100 ${n.is_read ? 'bg-white' : 'bg-blue-50 border-l-4 border-blue-500'}`}
+                        onClick={() => handleNotificationClick(n)}
+                      >
+                        <span className={`text-sm ${n.is_read ? '' : 'font-semibold text-blue-900'}`}>{n.message}</span>
+                        <span className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString()}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+      )}
+      
+      {activeView === 'profile' && (
+        <header className="bg-white shadow-sm border-b p-4 text-center">
+          <h1 className="text-xl font-bold">Profile</h1>
+        </header>
+      )}
 
       {/* Main Content */}
-      {renderContent()}
+      <div className="flex-1 overflow-y-auto">
+        {renderContent()}
+      </div>
 
-      {/* Bottom Navigation */}
-      <footer className="bg-white border-t p-2">
+      {/* Bottom Navigation - Always visible */}
+      <footer className="fixed bottom-0 w-full max-w-sm bg-white border-t p-2 z-40">
         <div className="flex justify-around items-center">
           <Button
             variant="ghost"

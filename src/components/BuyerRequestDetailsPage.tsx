@@ -36,8 +36,6 @@ export function BuyerRequestDetailsPage({ request, onBack, onViewSeller }: Buyer
         return;
       }
       
-      console.log("1. Fetched responses:", responseData);
-
       if (responseData && responseData.length > 0) {
         const sellerIds = responseData.map(res => res.userId);
         const { data: sellerData, error: sellerError } = await supabase
@@ -47,12 +45,6 @@ export function BuyerRequestDetailsPage({ request, onBack, onViewSeller }: Buyer
 
         if (sellerError) {
           console.error('Error fetching sellers:', sellerError);
-          toast({
-            title: "Error",
-            description: "Could not fetch seller details.",
-            variant: "destructive",
-          });
-          // Still show responses, just without seller details
           setResponses(responseData.map(res => ({...res, seller: { shopName: 'Unknown Seller' }})));
         } else {
           const sellersMap = new Map(sellerData.map(seller => [seller.userId, seller]));
@@ -76,17 +68,9 @@ export function BuyerRequestDetailsPage({ request, onBack, onViewSeller }: Buyer
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="bg-white shadow-sm border-b p-4 flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft />
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold">Request Details</h1>
-          <p className="text-sm text-muted-foreground">{request.name} - Submitted 5 mins ago</p>
-        </div>
-      </header>
-      <main className="flex-1 p-6 space-y-4 overflow-y-auto">
+    <div>
+      <main className="p-6 space-y-4 pb-24">
+        <p className="text-sm text-muted-foreground -mt-2 mb-4">{request.name} - Submitted 5 mins ago</p>
         <h2 className="text-lg font-semibold">Seller Responses ({responses.length})</h2>
         <div className="space-y-4">
           {responses.length > 0 ? (
@@ -104,11 +88,11 @@ export function BuyerRequestDetailsPage({ request, onBack, onViewSeller }: Buyer
             <p className="text-center text-muted-foreground py-4">No sellers have responded yet.</p>
           )}
         </div>
+        <div className="pt-4 flex gap-4">
+          <Button variant="outline" className="w-full" onClick={() => handleFooterAction('resend')}>Resend Request</Button>
+          <Button className="w-full" onClick={() => handleFooterAction('close')}>Close Request</Button>
+        </div>
       </main>
-      <footer className="p-4 bg-white border-t flex gap-4">
-        <Button variant="outline" className="w-full" onClick={() => handleFooterAction('resend')}>Resend Request</Button>
-        <Button className="w-full" onClick={() => handleFooterAction('close')}>Close Request</Button>
-      </footer>
     </div>
   );
 } 

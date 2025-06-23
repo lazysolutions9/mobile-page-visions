@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Home, User, Bell, ShoppingCart } from 'lucide-react';
+import { Home, User, Bell, ShoppingCart, Search, ArrowLeft } from 'lucide-react';
 import ProfilePage from './ProfilePage';
 import { BuyerRequestDetailsPage } from './BuyerRequestDetailsPage';
 import { SellerDetailsModal } from './SellerDetailsModal';
@@ -32,7 +32,8 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
       const { data: orders, error: ordersError } = await supabase
         .from('order')
         .select('*')
-        .eq('userId', user.id);
+        .eq('userId', user.id)
+        .order('created_at', { ascending: false });
 
       if (ordersError) {
         console.error('Error fetching user orders:', ordersError);
@@ -109,6 +110,20 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
         title: "Request Created",
         description: `Your request for "${itemName}" has been sent.`,
       });
+
+      // Notify all sellers
+      const { data: sellers, error: sellersError } = await supabase
+        .from('user')
+        .select('id')
+        .eq('isSeller', true);
+      if (!sellersError && sellers && sellers.length > 0) {
+        const notifications = sellers.map((seller: any) => ({
+          user_id: seller.id,
+          order_id: data.id,
+          message: `A new request for '${itemName}' has been posted.`,
+        }));
+        await supabase.from('notifications').insert(notifications);
+      }
     }
   };
 
@@ -130,6 +145,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
           userType="buyer"
           onLogout={onLogout}
           onSellWithUs={onSellWithUs}
+          onSwitchToSeller={onSwitchToSeller}
         />
       );
     }
@@ -155,7 +171,11 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     }
 
     return (
-      <main className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <main className="p-6 space-y-6 pb-24">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold">Welcome, {user?.username || 'Buyer'}!</h2>
+          <p className="text-muted-foreground">Ready to create a new request?</p>
+        </div>
         {/* Create Request Section */}
         <Card>
           <CardHeader>
@@ -213,26 +233,54 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
   return (
     <div className="flex flex-col h-full bg-gray-50">
       <SellerDetailsModal isOpen={isSellerModalOpen} onOpenChange={setSellerModalOpen} seller={selectedSeller} />
-      {/* Header */}
+      
+      {/* Headers for different views */}
       {activeView === 'home' && (
-        <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">Buyer Dashboard</h1>
-          <Button variant="ghost" size="icon" onClick={() => {
-            toast({
-              title: "No new notifications",
-              description: "You're all caught up!",
-            })
-          }}>
-            <Bell size={20} />
-          </Button>
+        <header className="bg-white shadow-sm border-b p-4 flex items-center justify-center relative">
+          <h1 className="text-xl font-bold">Home</h1>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <Button variant="ghost" size="icon" onClick={() => {
+              toast({
+                title: "No new notifications",
+                description: "You're all caught up!",
+              })
+            }}>
+              <Bell size={20} />
+            </Button>
+          </div>
         </header>
       )}
-
+      
+      {activeView === 'profile' && (
+        <header className="bg-white shadow-sm border-b p-4 text-center">
+          <h1 className="text-xl font-bold">Profile</h1>
+        </header>
+      )}
+      
+      {activeView === 'requests' && (
+        <header className="bg-white shadow-sm border-b p-4 text-center">
+          <h1 className="text-xl font-bold">Requests</h1>
+        </header>
+      )}
+      
+      {activeView === 'request-details' && (
+        <header className="bg-white shadow-sm border-b p-4 flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setActiveView('requests')}>
+            <ArrowLeft />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold">Request Details</h1>
+          </div>
+        </header>
+      )}
+      
       {/* Main Content */}
-      {renderContent()}
+      <div className="flex-1 overflow-y-auto">
+        {renderContent()}
+      </div>
 
-      {/* Bottom Navigation */}
-      <footer className="bg-white border-t p-2">
+      {/* Bottom Navigation - Always visible */}
+      <footer className="fixed bottom-0 w-full max-w-sm bg-white border-t p-2 z-50">
         <div className="flex justify-around items-center">
           <Button
             variant="ghost"
@@ -247,7 +295,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
             className={`flex flex-col items-center h-full space-y-1 ${activeView === 'requests' ? 'text-primary' : ''}`}
             onClick={() => setActiveView('requests')}
           >
-            <ShoppingCart size={24} />
+            <Search size={24} />
             <span className="text-xs font-medium">Requests</span>
           </Button>
           <Button

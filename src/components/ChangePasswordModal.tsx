@@ -10,28 +10,49 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "./ui/use-toast";
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  user: any; // We need the user to know whose password to update
 }
 
-export function ChangePasswordModal({ isOpen, onOpenChange }: ChangePasswordModalProps) {
+export function ChangePasswordModal({ isOpen, onOpenChange, user }: ChangePasswordModalProps) {
+  const { toast } = useToast();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleSaveChanges = () => {
+  const handleUpdatePassword = async () => {
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match!");
+      toast({ title: "Error", description: "Passwords do not match.", variant: "destructive" });
       return;
     }
     if (!newPassword) {
-      alert("Password cannot be empty!");
+      toast({ title: "Error", description: "Password cannot be empty.", variant: "destructive" });
       return;
     }
-    // In a real app, you'd call an API to save the password here
-    console.log("New password saved:", newPassword);
-    onOpenChange(false);
+
+    if (!user) {
+      toast({ title: "Error", description: "User not found. Please log in again.", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('user')
+      .update({ password: newPassword })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Error updating password:', error);
+      toast({ title: "Error", description: "Could not update password. Please try again.", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Your password has been changed." });
+      setNewPassword("");
+      setConfirmPassword("");
+      onOpenChange(false);
+    }
   };
 
   return (
@@ -58,7 +79,7 @@ export function ChangePasswordModal({ isOpen, onOpenChange }: ChangePasswordModa
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit" onClick={handleSaveChanges}>Save changes</Button>
+          <Button type="submit" onClick={handleUpdatePassword}>Save changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
