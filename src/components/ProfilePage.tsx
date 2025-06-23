@@ -73,8 +73,8 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <main className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
+    <div className="bg-gray-50">
+      <main className="p-6 space-y-6 pb-24">
         <ChangePasswordModal isOpen={isChangePasswordOpen} onOpenChange={setChangePasswordOpen} user={user} />
         <Card>
           <CardHeader>

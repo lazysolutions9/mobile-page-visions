@@ -19,8 +19,9 @@ export function BuyerRequestsListPage({ user, onBack, onViewRequestDetails }: Bu
 
       const { data: userOrders, error: ordersError } = await supabase
         .from('order')
-        .select('id, itemName')
-        .eq('userId', user.id);
+        .select('id, itemName, created_at')
+        .eq('userId', user.id)
+        .order('created_at', { ascending: false });
 
       if (ordersError) {
         console.error('Error fetching orders:', ordersError);
@@ -58,8 +59,8 @@ export function BuyerRequestsListPage({ user, onBack, onViewRequestDetails }: Bu
   }, [user]);
 
   return (
-    <div className="flex flex-col h-full">
-      <main className="flex-1 p-6 space-y-4 overflow-y-auto pb-24">
+    <div>
+      <main className="p-6 space-y-4 pb-24">
         <div className="space-y-4">
           {requests.map((request) => (
             <Card key={request.id} className="cursor-pointer" onClick={() => onViewRequestDetails(request)}>
