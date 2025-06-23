@@ -86,7 +86,7 @@ export function BuyerRequestDetailsPage({ request, onBack, onViewSeller }: Buyer
           <p className="text-sm text-muted-foreground">{request.name} - Submitted 5 mins ago</p>
         </div>
       </header>
-      <main className="flex-1 p-6 space-y-4 overflow-y-auto">
+      <main className="flex-1 p-6 space-y-4 overflow-y-auto pb-24">
         <h2 className="text-lg font-semibold">Seller Responses ({responses.length})</h2>
         <div className="space-y-4">
           {responses.length > 0 ? (

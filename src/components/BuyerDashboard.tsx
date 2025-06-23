@@ -130,6 +130,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
           userType="buyer"
           onLogout={onLogout}
           onSellWithUs={onSellWithUs}
+          onSwitchToSeller={onSwitchToSeller}
         />
       );
     }
@@ -155,7 +156,11 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     }
 
     return (
-      <main className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <main className="flex-1 p-6 space-y-6 overflow-y-auto pb-24">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold">Welcome, {user?.username || 'there'}!</h2>
+          <p className="text-muted-foreground">Ready to create a new request?</p>
+        </div>
         {/* Create Request Section */}
         <Card>
           <CardHeader>
@@ -213,26 +218,28 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
   return (
     <div className="flex flex-col h-full bg-gray-50">
       <SellerDetailsModal isOpen={isSellerModalOpen} onOpenChange={setSellerModalOpen} seller={selectedSeller} />
-      {/* Header */}
+      
       {activeView === 'home' && (
-        <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">Buyer Dashboard</h1>
-          <Button variant="ghost" size="icon" onClick={() => {
-            toast({
-              title: "No new notifications",
-              description: "You're all caught up!",
-            })
-          }}>
-            <Bell size={20} />
-          </Button>
+        <header className="bg-white shadow-sm border-b p-4 flex items-center justify-center relative">
+          <h1 className="text-xl font-bold">Home</h1>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <Button variant="ghost" size="icon" onClick={() => {
+              toast({
+                title: "No new notifications",
+                description: "You're all caught up!",
+              })
+            }}>
+              <Bell size={20} />
+            </Button>
+          </div>
         </header>
       )}
-
+      
       {/* Main Content */}
       {renderContent()}
 
       {/* Bottom Navigation */}
-      <footer className="bg-white border-t p-2">
+      <footer className="fixed bottom-0 w-full max-w-sm bg-white border-t p-2">
         <div className="flex justify-around items-center">
           <Button
             variant="ghost"

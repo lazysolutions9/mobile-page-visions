@@ -128,10 +128,10 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
               Accepted ({acceptedRequests.length})
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="incoming" className="p-6 space-y-4">
+          <TabsContent value="incoming" className="p-6 space-y-4 pb-24">
             <RequestList requests={incomingRequests} actionText="View" />
           </TabsContent>
-          <TabsContent value="accepted" className="p-6 space-y-4">
+          <TabsContent value="accepted" className="p-6 space-y-4 pb-24">
             <RequestList requests={acceptedRequests} actionText="Update" />
           </TabsContent>
         </Tabs>
@@ -148,24 +148,28 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
         onAccept={handleAccept}
         user={user}
       />
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Seller Dashboard</h1>
-        <Button variant="ghost" size="icon" onClick={() => {
-          toast({
-            title: "No new notifications",
-            description: "You're all caught up!",
-          })
-        }}>
-          <Bell size={20} />
-        </Button>
-      </header>
+      
+      {activeView === 'home' && (
+        <header className="bg-white shadow-sm border-b p-4 flex items-center justify-center relative">
+          <h1 className="text-xl font-bold">Dashboard</h1>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <Button variant="ghost" size="icon" onClick={() => {
+              toast({
+                title: "No new notifications",
+                description: "You're all caught up!",
+              })
+            }}>
+              <Bell size={20} />
+            </Button>
+          </div>
+        </header>
+      )}
 
       {/* Main Content */}
       {renderContent()}
 
       {/* Bottom Navigation */}
-      <footer className="bg-white border-t p-2">
+      <footer className="fixed bottom-0 w-full max-w-sm bg-white border-t p-2">
         <div className="flex justify-around items-center">
           <Button
             variant="ghost"

@@ -59,13 +59,10 @@ export function BuyerRequestsListPage({ user, onBack, onViewRequestDetails }: Bu
 
   return (
     <div className="flex flex-col h-full">
-      <header className="bg-white shadow-sm border-b p-4 flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft />
-        </Button>
-        <h1 className="text-xl font-bold">My Requests</h1>
+      <header className="bg-white shadow-sm border-b p-4 text-center">
+        <h1 className="text-xl font-bold">Requests</h1>
       </header>
-      <main className="flex-1 p-6 space-y-4 overflow-y-auto">
+      <main className="flex-1 p-6 space-y-4 overflow-y-auto pb-24">
         <div className="space-y-4">
           {requests.map((request) => (
             <Card key={request.id} className="cursor-pointer" onClick={() => onViewRequestDetails(request)}>
