@@ -48,7 +48,7 @@ const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
     // This is for demonstration purposes only and should not be used in production.
     const { data, error } = await supabase
       .from('user')
-      .insert([{ username, password, isSeller: null }])
+      .insert([{ username, password, isSeller: null, availableRequestCount: 30, usedCreditCount: 0 }])
       .select()
       .single();
 

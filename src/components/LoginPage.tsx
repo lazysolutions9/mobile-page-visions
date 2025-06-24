@@ -107,15 +107,14 @@ const LoginPage = ({ onSwitchToSignup, onForgotPasswordContinue, onLoginSuccess 
         <Button onClick={handleLogin} className="w-full">
           Login
         </Button>
-      </div>
-
-      <div className="mt-auto text-center pt-6">
-        <p className="text-muted-foreground">
-          New User?{' '}
-          <Button variant="link" onClick={onSwitchToSignup} className="p-0 h-auto">
-            Sign Up
-          </Button>
-        </p>
+        <div className="text-center mt-4">
+          <p className="text-muted-foreground">
+            New User?{' '}
+            <Button variant="link" onClick={onSwitchToSignup} className="p-0 h-auto">
+              Sign Up
+            </Button>
+          </p>
+        </div>
       </div>
     </div>
   );
