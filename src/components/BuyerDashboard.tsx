@@ -81,6 +81,31 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
       return;
     }
 
+    // Fetch the latest availableRequestCount and usedCreditCount from the user table
+    const { data: userData, error: userFetchError } = await supabase
+      .from('user')
+      .select('availableRequestCount, usedCreditCount')
+      .eq('id', user.id)
+      .single();
+
+    if (userFetchError || !userData) {
+      toast({
+        title: "Error",
+        description: "Could not verify your credits. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (userData.availableRequestCount === 0) {
+      toast({
+        title: "You are out of credits",
+        description: "Please purchase more credits to place a request.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { data, error } = await supabase
       .from('order')
       .insert({
@@ -99,6 +124,15 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
         variant: "destructive",
       });
     } else {
+      // Decrement availableRequestCount by 1 and increment usedCreditCount by 1 using the latest values
+      await supabase
+        .from('user')
+        .update({ 
+          availableRequestCount: userData.availableRequestCount - 1,
+          usedCreditCount: userData.usedCreditCount + 1
+        })
+        .eq('id', user.id);
+
       const newRequest = {
         id: data.id,
         name: data.itemName,
