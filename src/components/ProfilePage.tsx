@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Edit, LogOut, KeyRound, Store, ShieldCheck, Repeat } from 'lucide-react';
+import { User, Edit, LogOut, KeyRound, Store, ShieldCheck, Repeat, Mail, Phone } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { supabase } from '@/lib/supabase';
 import { useToast } from './ui/use-toast';
@@ -23,6 +23,7 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
   const [shopAddress, setShopAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [credits, setCredits] = useState<number | null>(null);
 
   useEffect(() => {
     if (userType === 'seller' && user) {
@@ -44,6 +45,21 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
       fetchSellerDetails();
     }
   }, [user, userType]);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('user')
+        .select('availableRequestCount')
+        .eq('id', user.id)
+        .single();
+      if (!error && data) {
+        setCredits(data.availableRequestCount);
+      }
+    };
+    fetchCredits();
+  }, [user]);
 
   const handleUpdateDetails = async () => {
     if (!user) {
@@ -84,6 +100,15 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
             <CardDescription>{user?.username || user?.email || 'N/A'}</CardDescription>
           </CardHeader>
         </Card>
+
+        {userType === 'buyer' && (
+          <Card>
+            <CardContent className="p-4 space-y-2">
+              <div className="font-semibold">Credits Remaining</div>
+              <div className="text-2xl font-bold text-primary">{credits !== null ? credits : '...'}</div>
+            </CardContent>
+          </Card>
+        )}
 
         {userType === 'seller' && (
           <Card>
@@ -134,6 +159,28 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={onLogout}>
               <LogOut /> Logout
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Contact Us Cell */}
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            <div className="font-semibold">Contact Us</div>
+            <div className="text-sm text-muted-foreground">For any query contact us on mail or phone</div>
+            <a
+              href="https://mail.google.com/mail/?view=cm&fs=1&to=lazysolutions9@gmail.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline flex items-center gap-2 mt-1"
+            >
+              <Mail size={16} /> lazysolutions9@gmail.com
+            </a>
+            <a
+              href="tel:+919888386663"
+              className="text-blue-600 hover:underline flex items-center gap-2 mt-1"
+            >
+              <Phone size={16} /> +91 9888386663
+            </a>
           </CardContent>
         </Card>
       </main>

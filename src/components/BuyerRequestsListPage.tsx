@@ -62,17 +62,21 @@ export function BuyerRequestsListPage({ user, onBack, onViewRequestDetails }: Bu
     <div>
       <main className="p-6 space-y-4 pb-24">
         <div className="space-y-4">
-          {requests.map((request) => (
-            <Card key={request.id} className="cursor-pointer" onClick={() => onViewRequestDetails(request)}>
-              <CardContent className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="font-semibold">{request.name}</p>
-                  <p className="text-sm text-muted-foreground">{request.status} - {request.responses} responses</p>
-                </div>
-                <ChevronRight className="text-muted-foreground" />
-              </CardContent>
-            </Card>
-          ))}
+          {requests.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">You have not made any requests.</p>
+          ) : (
+            requests.map((request) => (
+              <Card key={request.id} className="cursor-pointer" onClick={() => onViewRequestDetails(request)}>
+                <CardContent className="p-4 flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">{request.name}</p>
+                    <p className="text-sm text-muted-foreground">{request.status} - {request.responses} responses</p>
+                  </div>
+                  <ChevronRight className="text-muted-foreground" />
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </main>
     </div>
