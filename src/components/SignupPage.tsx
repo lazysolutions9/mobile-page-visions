@@ -114,7 +114,7 @@ const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
         </Button>
       </div>
 
-      <div className="mt-auto text-center pt-6">
+      <div className="mt-auto text-center pt-6" style={{ marginTop: 20 }}>
         <p className="text-muted-foreground">
           Already have an account?{' '}
           <Button variant="link" onClick={onSwitchToLogin} className="p-0 h-auto">
