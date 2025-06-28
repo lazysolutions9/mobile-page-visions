@@ -27,12 +27,23 @@ const SellerSetup = ({ user, onSetupComplete }: SellerSetupProps) => {
       return;
     }
 
+    const pincodeInt = user.pincode ? parseInt(user.pincode, 10) : null;
+    if (!pincodeInt) {
+      toast({
+        title: "Missing Pincode",
+        description: "Your account does not have a valid pincode. Please update your profile.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase.from('sellerDetails').insert({
       userId: user.id,
       shopName,
       category: 'Medical',
       shopAddress,
       notes,
+      pincode: pincodeInt,
     });
 
     if (error) {

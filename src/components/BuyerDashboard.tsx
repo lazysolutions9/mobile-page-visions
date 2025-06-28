@@ -20,18 +20,40 @@ interface BuyerDashboardProps {
 const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: BuyerDashboardProps) => {
   const { toast } = useToast();
   const [itemName, setItemName] = useState('');
+  const [pincode, setPincode] = useState('');
   const [activeView, setActiveView] = useState('home');
   const [latestRequests, setLatestRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedSeller, setSelectedSeller] = useState<any>(null);
   const [isSellerModalOpen, setSellerModalOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationSeller, setNotificationSeller] = useState<any>(null);
+
+  // Fetch user's pincode on component mount and when returning to home view
+  useEffect(() => {
+    const fetchUserPincode = async () => {
+      if (!user) return;
+      const { data: userData, error } = await supabase
+        .from('user')
+        .select('pincode')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && userData) {
+        setPincode(userData.pincode ? String(userData.pincode) : '');
+      }
+    };
+
+    fetchUserPincode();
+  }, [user, activeView]);
 
   useEffect(() => {
     const fetchUserOrders = async () => {
       if (!user) return;
       const { data: orders, error: ordersError } = await supabase
         .from('order')
-        .select('*')
+        .select('id, itemName, pincode, created_at')
         .eq('userId', user.id)
         .order('created_at', { ascending: false });
 
@@ -64,12 +86,41 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
         id: order.id,
         name: order.itemName,
         count: responseCounts[order.id] || 0,
+        pincode: order.pincode,
       }));
       setLatestRequests(formattedRequests);
     };
 
     fetchUserOrders();
   }, [user, toast]);
+
+  // Fetch notifications for the buyer
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setNotifications(data);
+      }
+    };
+    fetchNotifications();
+  }, [user]);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const markAllAsRead = async () => {
+    if (!user) return;
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+    setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+  };
 
   const handleCreateRequest = async () => {
     if (!itemName.trim()) {
@@ -112,6 +163,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
         userId: user.id,
         itemName: itemName.trim(),
         category: 'Medical',
+        pincode: pincode ? pincode.trim() : '',
       })
       .select()
       .single();
@@ -140,23 +192,41 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
       };
       setLatestRequests(prev => [newRequest, ...prev]);
       setItemName('');
+      setPincode('');
       toast({
         title: "Request Created",
         description: `Your request for "${itemName}" has been sent.`,
       });
 
-      // Notify all sellers
+      // Notify sellers with matching pincode
+      const orderPincode = pincode ? pincode.trim() : '';
+      console.log('Order pincode:', orderPincode); // Debug log
+      
       const { data: sellers, error: sellersError } = await supabase
         .from('user')
-        .select('id')
+        .select('id, pincode')
         .eq('isSeller', true);
-      if (!sellersError && sellers && sellers.length > 0) {
-        const notifications = sellers.map((seller: any) => ({
-          user_id: seller.id,
-          order_id: data.id,
-          message: `A new request for '${itemName}' has been posted.`,
-        }));
-        await supabase.from('notifications').insert(notifications);
+      
+      if (!sellersError && sellers) {
+        console.log('All sellers:', sellers); // Debug log
+        
+        // Filter sellers with matching pincode
+        const matchingSellers = sellers.filter((seller: any) => {
+          const sellerPincode = seller.pincode ? String(seller.pincode).trim() : '';
+          console.log(`Seller ${seller.id} pincode: "${sellerPincode}" vs order pincode: "${orderPincode}"`); // Debug log
+          return sellerPincode === orderPincode;
+        });
+        
+        console.log('Matching sellers:', matchingSellers); // Debug log
+        
+        if (matchingSellers.length > 0) {
+          const notifications = matchingSellers.map((seller: any) => ({
+            user_id: seller.id,
+            order_id: data.id,
+            message: `A new request for '${itemName}' has been posted in your area.`,
+          }));
+          await supabase.from('notifications').insert(notifications);
+        }
       }
     }
   };
@@ -170,6 +240,21 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     setSelectedSeller(seller);
     setSellerModalOpen(true);
   }
+
+  const handleNotificationClick = async (notification: any) => {
+    if (notification.message && notification.message.startsWith('Sale Live!') && notification.seller_id) {
+      const { data: seller, error } = await supabase
+        .from('sellerDetails')
+        .select('*')
+        .eq('user_id', notification.seller_id)
+        .single();
+      if (!error && seller) {
+        setNotificationSeller({ ...seller, userId: notification.seller_id });
+        setShowNotifications(false);
+        setSellerModalOpen(true);
+      }
+    }
+  };
 
   const renderContent = () => {
     if (activeView === 'profile') {
@@ -221,6 +306,11 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
             />
+            <Input
+              placeholder="Enter pincode..."
+              value={pincode || ''}
+              onChange={(e) => setPincode(e.target.value || '')}
+            />
             <Button onClick={handleCreateRequest} className="w-full">
               Create Request
             </Button>
@@ -266,21 +356,43 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <SellerDetailsModal isOpen={isSellerModalOpen} onOpenChange={setSellerModalOpen} seller={selectedSeller} />
+      <SellerDetailsModal isOpen={isSellerModalOpen} onOpenChange={setSellerModalOpen} seller={notificationSeller || selectedSeller} />
       
       {/* Headers for different views */}
       {activeView === 'home' && (
         <header className="bg-white shadow-sm border-b p-4 flex items-center justify-center relative">
           <h1 className="text-xl font-bold">Home</h1>
           <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <Button variant="ghost" size="icon" onClick={() => {
-              toast({
-                title: "No new notifications",
-                description: "You're all caught up!",
-              })
-            }}>
-              <Bell size={20} />
-            </Button>
+            <div className="relative inline-block">
+              <Button variant="ghost" size="icon" onClick={() => setShowNotifications(v => !v)}>
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">{unreadCount}</span>
+                )}
+              </Button>
+              {showNotifications && (
+                <div className="fixed right-4 top-20 w-80 bg-white border rounded-xl shadow-2xl z-[1050] max-h-96 overflow-y-auto animate-fade-in">
+                  <div className="flex items-center justify-between p-3 border-b bg-gray-50 rounded-t-xl">
+                    <span className="font-semibold text-base">Notifications</span>
+                    <Button variant="link" size="sm" onClick={markAllAsRead} disabled={unreadCount === 0}>Mark all as read</Button>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-muted-foreground">No notifications</div>
+                  ) : (
+                    notifications.map(n => (
+                      <div
+                        key={n.id}
+                        className={`w-full text-left p-4 border-b last:border-b-0 transition-colors flex flex-col gap-1 focus:outline-none hover:bg-gray-100 ${n.is_read ? 'bg-white' : 'bg-blue-50 border-l-4 border-blue-500'}`}
+                        onClick={() => handleNotificationClick(n)}
+                      >
+                        <span className={`text-sm ${n.is_read ? '' : 'font-semibold text-blue-900'}`}>{n.message}</span>
+                        <span className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString()}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </header>
       )}

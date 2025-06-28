@@ -33,13 +33,42 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
       return;
     }
 
+    // First, get the seller's pincode
+    const { data: sellerData, error: sellerError } = await supabase
+      .from('user')
+      .select('pincode')
+      .eq('id', user.id)
+      .single();
+
+    if (sellerError || !sellerData) {
+      toast({ title: "Error", description: "Could not fetch seller information.", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    const sellerPincode = sellerData.pincode ? String(sellerData.pincode).trim() : '';
+    const sellerPincodeInt = sellerPincode ? parseInt(sellerPincode, 10) : null;
+    console.log('Seller pincode (string):', sellerPincode, 'Type:', typeof sellerPincode); // Debug log
+    console.log('Seller pincode (int):', sellerPincodeInt, 'Type:', typeof sellerPincodeInt); // Debug log
+
+    // First, let's see all orders to debug
+    const { data: allOrdersDebug, error: debugError } = await supabase
+      .from('order')
+      .select('id, itemName, pincode, created_at')
+      .order('created_at', { ascending: false });
+
+    console.log('All orders in database:', allOrdersDebug); // Debug log
+
     const [ordersResult, responsesResult] = await Promise.all([
-      supabase.from('order').select('*').order('created_at', { ascending: false }),
+      supabase.from('order').select('id, itemName, pincode, created_at').eq('pincode', sellerPincodeInt).order('created_at', { ascending: false }),
       supabase.from('sellerResponse').select('*').eq('userId', user.id)
     ]);
 
     const { data: allOrders, error: ordersError } = ordersResult;
     const { data: sellerResponses, error: responsesError } = responsesResult;
+
+    console.log('Orders for seller pincode:', allOrders); // Debug log
+    console.log('Orders error:', ordersError); // Debug log
 
     if (responsesError) {
       toast({ title: "Error", description: "Could not fetch your accepted requests.", variant: "destructive" });
@@ -53,7 +82,8 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
         const formattedAccepted = acceptedOrders.map((order: any) => ({
           ...order,
           notes: acceptedMap.get(order.id)?.notes || '',
-          status: 'accepted'
+          status: 'accepted',
+          pincode: order.pincode,
         }));
         setAcceptedRequests(formattedAccepted);
       } else {
@@ -68,7 +98,7 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
       if (allOrders) {
         const respondedOrderIds = new Set((sellerResponses || []).map((res: any) => res.orderId));
         const incoming = allOrders.filter((order: any) => !respondedOrderIds.has(order.id));
-        setIncomingRequests(incoming.map(req => ({ ...req, status: 'incoming' })));
+        setIncomingRequests(incoming.map(req => ({ ...req, status: 'incoming', pincode: req.pincode })));
       } else {
         setIncomingRequests([]);
       }

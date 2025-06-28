@@ -15,9 +15,30 @@ const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [pincode, setPincode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSignup = async () => {
+    if (!username.trim() || !password.trim() || !pincode.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate pincode format - exactly 6 digits
+    const pincodeRegex = /^\d{6}$/;
+    if (!pincodeRegex.test(pincode)) {
+      toast({
+        title: "Invalid Pincode",
+        description: "Pincode must contain exactly 6 digits.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // 1. Check if username already exists
     const { data: existingUser, error: fetchError } = await supabase
       .from('user')
@@ -48,7 +69,7 @@ const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
     // This is for demonstration purposes only and should not be used in production.
     const { data, error } = await supabase
       .from('user')
-      .insert([{ username, password, isSeller: null, availableRequestCount: 30, usedCreditCount: 0 }])
+      .insert([{ username, password, pincode, isSeller: null, availableRequestCount: 30, usedCreditCount: 0 }])
       .select()
       .single();
 
@@ -107,6 +128,18 @@ const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="signup-pincode">Pincode *</Label>
+          <Input
+            id="signup-pincode"
+            type="text"
+            value={pincode}
+            onChange={(e) => setPincode(e.target.value)}
+            placeholder="Enter your pincode"
+            maxLength={6}
+          />
         </div>
 
         <Button onClick={handleSignup} className="w-full">

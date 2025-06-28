@@ -102,6 +102,10 @@ export function SellerRequestDetailsModal({ isOpen, onOpenChange, request, onAcc
             <h4 className="font-semibold">Time</h4>
             <p className="text-sm text-muted-foreground">{new Date(request.created_at || request.date).toLocaleTimeString()}</p>
           </div>
+          <div>
+            <h4 className="font-semibold">Pincode</h4>
+            <p className="text-sm text-muted-foreground">{request.pincode || "N/A"}</p>
+          </div>
         </div>
         <DialogFooter>
           {isIncoming ? (

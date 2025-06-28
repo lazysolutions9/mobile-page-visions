@@ -19,11 +19,14 @@ interface ProfilePageProps {
 const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller }: ProfilePageProps) => {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingPincode, setIsEditingPincode] = useState(false);
   const [shopName, setShopName] = useState('');
   const [shopAddress, setShopAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [pincode, setPincode] = useState('');
   const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
+  const [discountItems, setDiscountItems] = useState('');
 
   useEffect(() => {
     if (userType === 'seller' && user) {
@@ -61,6 +64,23 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
     fetchCredits();
   }, [user]);
 
+  useEffect(() => {
+    const fetchUserPincode = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('user')
+        .select('pincode')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && data) {
+        setPincode(data.pincode || '');
+      }
+    };
+
+    fetchUserPincode();
+  }, [user]);
+
   const handleUpdateDetails = async () => {
     if (!user) {
       toast({ title: 'Authentication Error', description: 'You must be logged in to update details.', variant: 'destructive' });
@@ -88,6 +108,81 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
     }
   };
 
+  const handleUpdatePincode = async () => {
+    if (!user) {
+      toast({ title: 'Authentication Error', description: 'You must be logged in to update pincode.', variant: 'destructive' });
+      return;
+    }
+
+    if (!pincode.trim()) {
+      toast({ title: 'Missing Pincode', description: 'Please enter a pincode.', variant: 'destructive' });
+      return;
+    }
+
+    // Validate pincode format - exactly 6 digits
+    const pincodeRegex = /^\d{6}$/;
+    if (!pincodeRegex.test(pincode)) {
+      toast({ title: 'Invalid Pincode', description: 'Pincode must contain exactly 6 digits.', variant: 'destructive' });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('user')
+      .update({ pincode: pincode.trim() })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error("Error updating pincode:", error);
+      toast({ title: 'Error', description: 'Could not update pincode. Please try again.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Pincode updated successfully.' });
+      setIsEditingPincode(false);
+    }
+  };
+
+  const handleMakeSaleLive = async () => {
+    if (!discountItems.trim()) {
+      toast({ title: 'Missing Items', description: 'Please enter items for discount.', variant: 'destructive' });
+      return;
+    }
+    // Fetch seller's pincode
+    const { data: sellerDetails, error: sellerError } = await supabase
+      .from('sellerDetails')
+      .select('pincode')
+      .eq('userId', user.id)
+      .single();
+    if (sellerError || !sellerDetails || !sellerDetails.pincode) {
+      toast({ title: 'Error', description: 'Could not fetch your pincode.', variant: 'destructive' });
+      return;
+    }
+    // Fetch all buyers with matching pincode
+    const { data: buyers, error } = await supabase
+      .from('user')
+      .select('id')
+      .eq('isSeller', false)
+      .eq('pincode', sellerDetails.pincode);
+    if (error) {
+      toast({ title: 'Error', description: 'Could not fetch buyers.', variant: 'destructive' });
+      return;
+    }
+    if (buyers && buyers.length > 0) {
+      const notifications = buyers.map((buyer: any) => ({
+        user_id: buyer.id, // recipient
+        seller_id: user.id, // sender (the seller)
+        message: `Sale Live! Discount on: ${discountItems}`,
+      }));
+      const { error: notifError } = await supabase.from('notifications').insert(notifications);
+      if (notifError) {
+        toast({ title: 'Error', description: notifError.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Sale Live!', description: 'Notification sent to buyers in your area.' });
+      setDiscountItems('');
+    } else {
+      toast({ title: 'No Buyers', description: 'No buyers found in your area.', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="bg-gray-50">
       <main className="p-6 space-y-6 pb-24">
@@ -99,6 +194,33 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
             </CardTitle>
             <CardDescription>{user?.username || user?.email || 'N/A'}</CardDescription>
           </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck /> Pincode
+              </CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setIsEditingPincode(!isEditingPincode)}>
+                <Edit size={20} />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="pincode">Pincode</Label>
+              <Input 
+                id="pincode" 
+                value={pincode} 
+                onChange={e => setPincode(e.target.value)} 
+                disabled={!isEditingPincode}
+                placeholder="Enter 6-digit pincode"
+                maxLength={6}
+              />
+            </div>
+            {isEditingPincode && <Button className="w-full" onClick={handleUpdatePincode}>Save Pincode</Button>}
+          </CardContent>
         </Card>
 
         {userType === 'buyer' && (
@@ -136,6 +258,24 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
                 <Input id="mobileNotes" value={notes} onChange={e => setNotes(e.target.value)} disabled={!isEditing} />
               </div>
               {isEditing && <Button className="w-full" onClick={handleUpdateDetails}>Save</Button>}
+            </CardContent>
+          </Card>
+        )}
+
+        {userType === 'seller' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Make Sale Live</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Label htmlFor="discount-items">Discount Items</Label>
+              <Input
+                id="discount-items"
+                value={discountItems}
+                onChange={e => setDiscountItems(e.target.value)}
+                placeholder="e.g., Paracetamol, Vitamin C, ..."
+              />
+              <Button className="w-full" onClick={handleMakeSaleLive}>Make Sale Live</Button>
             </CardContent>
           </Card>
         )}
