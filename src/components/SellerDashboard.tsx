@@ -165,21 +165,25 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
     }
   };
 
-  const RequestList = ({ requests, actionText }: { requests: any[], actionText: string }) => (
+  const RequestList = ({ requests, actionText, emptyMessage }: { requests: any[], actionText: string, emptyMessage: string }) => (
     <div className="space-y-3">
-      {requests.map((request) => (
-        <Card key={request.id}>
-          <CardContent className="p-4 flex justify-between items-center">
-            <div>
-              <p className="font-medium">{request.itemName}</p>
-              <p className="text-sm text-muted-foreground">
-                Requested on: {new Date(request.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <Button size="sm" onClick={() => handleRequestClick(request)}>{actionText}</Button>
-          </CardContent>
-        </Card>
-      ))}
+      {requests.length === 0 ? (
+        <div className="text-center text-muted-foreground py-8">{emptyMessage}</div>
+      ) : (
+        requests.map((request) => (
+          <Card key={request.id}>
+            <CardContent className="p-4 flex justify-between items-center">
+              <div>
+                <p className="font-medium">{request.itemName}</p>
+                <p className="text-sm text-muted-foreground">
+                  Requested on: {new Date(request.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              <Button size="sm" onClick={() => handleRequestClick(request)}>{actionText}</Button>
+            </CardContent>
+          </Card>
+        ))
+      )}
     </div>
   );
 
@@ -206,10 +210,10 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
             </TabsTrigger>
           </TabsList>
           <TabsContent value="incoming" className="p-6 space-y-4 pb-24">
-            <RequestList requests={incomingRequests} actionText="View" />
+            <RequestList requests={incomingRequests} actionText="View" emptyMessage="You have no incoming requests." />
           </TabsContent>
           <TabsContent value="accepted" className="p-6 space-y-4 pb-24">
-            <RequestList requests={acceptedRequests} actionText="Update" />
+            <RequestList requests={acceptedRequests} actionText="Update" emptyMessage="You have no accepted requests." />
           </TabsContent>
         </Tabs>
       </main>

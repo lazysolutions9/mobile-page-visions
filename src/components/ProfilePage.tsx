@@ -27,6 +27,8 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
   const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
   const [discountItems, setDiscountItems] = useState('');
+  const [pendingSaleCredit, setPendingSaleCredit] = useState<number | null>(null);
+  const [showBuyCreditPopup, setShowBuyCreditPopup] = useState(false);
 
   useEffect(() => {
     if (userType === 'seller' && user) {
@@ -43,6 +45,7 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
           setShopName(data.shopName);
           setShopAddress(data.shopAddress);
           setNotes(data.notes);
+          setPendingSaleCredit(typeof data.pendingSaleCredit === 'number' ? data.pendingSaleCredit : 0);
         }
       };
       fetchSellerDetails();
@@ -148,11 +151,15 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
     // Fetch seller's pincode
     const { data: sellerDetails, error: sellerError } = await supabase
       .from('sellerDetails')
-      .select('pincode')
+      .select('pincode, pendingSaleCredit')
       .eq('userId', user.id)
       .single();
     if (sellerError || !sellerDetails || !sellerDetails.pincode) {
       toast({ title: 'Error', description: 'Could not fetch your pincode.', variant: 'destructive' });
+      return;
+    }
+    if (sellerDetails.pendingSaleCredit === 0) {
+      toast({ title: 'No Sale Credit', description: 'You have no sale credits left. Please buy more.', variant: 'destructive' });
       return;
     }
     // Fetch all buyers with matching pincode
@@ -176,6 +183,12 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
         toast({ title: 'Error', description: notifError.message, variant: 'destructive' });
         return;
       }
+      // Decrement pendingSaleCredit by 1 in sellerDetails table
+      await supabase
+        .from('sellerDetails')
+        .update({ pendingSaleCredit: (sellerDetails.pendingSaleCredit || 1) - 1 })
+        .eq('userId', user.id);
+      setPendingSaleCredit((prev) => (prev !== null ? prev - 1 : null));
       toast({ title: 'Sale Live!', description: 'Notification sent to buyers in your area.' });
       setDiscountItems('');
     } else {
@@ -268,14 +281,31 @@ const ProfilePage = ({ user, userType, onLogout, onSellWithUs, onSwitchToSeller 
               <CardTitle>Make Sale Live</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Label htmlFor="discount-items">Discount Items</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="discount-items">Discount Items</Label>
+                <span className="text-sm font-semibold">Available Sale Credit: {pendingSaleCredit !== null ? pendingSaleCredit : '...'}</span>
+              </div>
               <Input
                 id="discount-items"
                 value={discountItems}
                 onChange={e => setDiscountItems(e.target.value)}
                 placeholder="e.g., Paracetamol, Vitamin C, ..."
+                disabled={pendingSaleCredit === 0}
               />
-              <Button className="w-full" onClick={handleMakeSaleLive}>Make Sale Live</Button>
+              <Button
+                className="w-full"
+                onClick={pendingSaleCredit === 0 ? () => setShowBuyCreditPopup(true) : handleMakeSaleLive}
+              >
+                {pendingSaleCredit === 0 ? 'Buy Credit' : 'Make Sale Live'}
+              </Button>
+              {showBuyCreditPopup && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
+                  <div className="bg-white p-6 rounded-lg shadow-lg text-center space-y-4">
+                    <div className="text-lg font-semibold">Contact : 9888386663</div>
+                    <Button onClick={() => setShowBuyCreditPopup(false)} className="w-full">Close</Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
