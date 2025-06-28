@@ -93,6 +93,14 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
     };
 
     fetchUserOrders();
+
+    const interval = setInterval(() => {
+      fetchUserOrders();
+    }, 40000); // 40 seconds
+
+    return () => {
+      clearInterval(interval);
+    };
   }, [user, toast]);
 
   // Fetch notifications for the buyer
@@ -193,10 +201,19 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
       };
       setLatestRequests(prev => [newRequest, ...prev]);
       setItemName('');
-      setPincode('');
+      // Fetch pincode from user table after order placement
+      const { data: userPincodeData, error: userPincodeError } = await supabase
+        .from('user')
+        .select('pincode')
+        .eq('id', user.id)
+        .single();
+      if (!userPincodeError && userPincodeData) {
+        setPincode(userPincodeData.pincode ? String(userPincodeData.pincode) : '');
+      }
       toast({
         title: "Request Created",
         description: `Your request for "${itemName}" has been sent.`,
+        duration: 5000,
       });
 
       // Notify sellers with matching pincode

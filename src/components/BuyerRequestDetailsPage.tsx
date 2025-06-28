@@ -70,7 +70,9 @@ export function BuyerRequestDetailsPage({ request, onBack, onViewSeller }: Buyer
   return (
     <div>
       <main className="p-6 space-y-4 pb-24">
-        <p className="text-sm text-muted-foreground -mt-2 mb-4">{request.name} - Submitted 5 mins ago</p>
+        <p className="text-sm text-muted-foreground -mt-2 mb-4">
+          {request.name} - Submitted {request.created_at ? `${new Date(request.created_at).toLocaleString()}` : ''}
+        </p>
         <div>
           <h4 className="font-semibold">Pincode</h4>
           <p className="text-sm text-muted-foreground">{request.pincode || "N/A"}</p>

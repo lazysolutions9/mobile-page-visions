@@ -62,7 +62,7 @@ export function SellerDetailsModal({ isOpen, onOpenChange, seller }: SellerDetai
             </p>
           </div>
           <div>
-            <h4 className="font-semibold">Seller Notes</h4>
+            <h4 className="font-semibold">Description</h4>
             <p className="text-sm text-muted-foreground">
               {seller.notes || "No notes provided."}
             </p>

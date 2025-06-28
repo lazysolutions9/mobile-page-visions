@@ -19,7 +19,7 @@ export function BuyerRequestsListPage({ user, onBack, onViewRequestDetails }: Bu
 
       const { data: userOrders, error: ordersError } = await supabase
         .from('order')
-        .select('id, itemName, created_at')
+        .select('id, itemName, created_at, pincode')
         .eq('userId', user.id)
         .order('created_at', { ascending: false });
 
@@ -50,6 +50,7 @@ export function BuyerRequestsListPage({ user, onBack, onViewRequestDetails }: Bu
         name: order.itemName,
         status: 'Active', // This can be updated if you add a status to your order table
         responses: responseCounts[order.id] || 0,
+        pincode: order.pincode,
       }));
 
       setRequests(combinedData);

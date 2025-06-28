@@ -3,20 +3,42 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { supabase } from '@/lib/supabase';
+import { useToast } from './ui/use-toast';
 
 interface SetNewPasswordPageProps {
+  username: string;
   onPasswordSet: () => void;
 }
 
-const SetNewPasswordPage = ({ onPasswordSet }: SetNewPasswordPageProps) => {
+const SetNewPasswordPage = ({ username, onPasswordSet }: SetNewPasswordPageProps) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
 
-  const handleSavePassword = () => {
-    console.log('New password set');
-    // Add password save logic here
+  const handleSavePassword = async () => {
+    if (!password || !confirmPassword) {
+      toast({ title: 'Error', description: 'Please fill in both password fields.', variant: 'destructive' });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ title: 'Error', description: 'Passwords do not match.', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase
+      .from('user')
+      .update({ password })
+      .eq('username', username);
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Error', description: 'Could not update password.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Success', description: 'Password updated successfully.' });
     onPasswordSet();
   };
 
@@ -68,8 +90,8 @@ const SetNewPasswordPage = ({ onPasswordSet }: SetNewPasswordPageProps) => {
           </div>
         </div>
 
-        <Button onClick={handleSavePassword} className="w-full">
-          Save New Password
+        <Button onClick={handleSavePassword} className="w-full" disabled={loading}>
+          {loading ? 'Saving...' : 'Save New Password'}
         </Button>
       </div>
     </div>

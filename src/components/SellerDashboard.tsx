@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,6 +24,7 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsPanelRef = useRef<HTMLDivElement>(null);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -124,6 +125,24 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
     };
     fetchNotifications();
   }, [user]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (
+        notificationsPanelRef.current &&
+        !notificationsPanelRef.current.contains(event.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
@@ -243,7 +262,10 @@ const SellerDashboard = ({ user, onLogout, onSwitchToBuyer }: SellerDashboardPro
                 )}
               </Button>
               {showNotifications && (
-                <div className="fixed right-4 top-20 w-80 bg-white border rounded-xl shadow-2xl z-[1050] max-h-96 overflow-y-auto animate-fade-in">
+                <div
+                  ref={notificationsPanelRef}
+                  className="fixed right-4 top-20 w-80 bg-white border rounded-xl shadow-2xl z-[1050] max-h-96 overflow-y-auto animate-fade-in"
+                >
                   <div className="flex items-center justify-between p-3 border-b bg-gray-50 rounded-t-xl">
                     <span className="font-semibold text-base">Notifications</span>
                     <Button variant="link" size="sm" onClick={markAllAsRead} disabled={unreadCount === 0}>Mark all as read</Button>
