@@ -9,14 +9,22 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useState } from "react";
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onContinue: () => void;
+  onContinue: (username: string) => void;
 }
 
 export function ForgotPasswordModal({ isOpen, onOpenChange, onContinue }: ForgotPasswordModalProps) {
+  const [username, setUsername] = useState("");
+
+  const handleContinue = () => {
+    onContinue(username);
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -31,11 +39,18 @@ export function ForgotPasswordModal({ isOpen, onOpenChange, onContinue }: Forgot
             <Label htmlFor="username" className="text-right">
               Username
             </Label>
-            <Input id="username" type="text" className="col-span-3" placeholder="your_username" />
+            <Input
+              id="username"
+              type="text"
+              className="col-span-3"
+              placeholder="your_username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit" onClick={onContinue}>Continue</Button>
+          <Button type="submit" onClick={handleContinue}>Continue</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

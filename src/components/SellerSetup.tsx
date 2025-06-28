@@ -44,6 +44,7 @@ const SellerSetup = ({ user, onSetupComplete }: SellerSetupProps) => {
       shopAddress,
       notes,
       pincode: pincodeInt,
+      pendingSaleCredit: 1,
     });
 
     if (error) {

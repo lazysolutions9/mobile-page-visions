@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { supabase } from '@/lib/supabase';
 import { useToast } from './ui/use-toast';
+import SetNewPasswordPage from './SetNewPasswordPage';
+import { Dialog, DialogContent } from './ui/dialog';
 
 interface LoginPageProps {
   onSwitchToSignup: () => void;
@@ -19,6 +21,8 @@ const LoginPage = ({ onSwitchToSignup, onForgotPasswordContinue, onLoginSuccess 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isForgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [isSetNewPasswordOpen, setSetNewPasswordOpen] = useState(false);
+  const [resetUsername, setResetUsername] = useState('');
 
   const handleLogin = async () => {
     // WARNING: This is a highly insecure way to handle login.
@@ -53,14 +57,26 @@ const LoginPage = ({ onSwitchToSignup, onForgotPasswordContinue, onLoginSuccess 
     }
   };
   
-  const handleContinue = () => {
+  const handleForgotPasswordContinue = (username: string) => {
     setForgotPasswordOpen(false);
-    onForgotPasswordContinue();
+    setResetUsername(username);
+    setSetNewPasswordOpen(true);
   }
 
   return (
     <div className="flex flex-col h-full p-6">
-      <ForgotPasswordModal isOpen={isForgotPasswordOpen} onOpenChange={setForgotPasswordOpen} onContinue={handleContinue} />
+      <ForgotPasswordModal isOpen={isForgotPasswordOpen} onOpenChange={setForgotPasswordOpen} onContinue={handleForgotPasswordContinue} />
+      <Dialog open={isSetNewPasswordOpen} onOpenChange={setSetNewPasswordOpen}>
+        <DialogContent>
+          <SetNewPasswordPage
+            username={resetUsername}
+            onPasswordSet={() => {
+              setSetNewPasswordOpen(false);
+              toast({ title: 'Password Reset', description: 'Your password has been updated. Please login with your new password.' });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
       <div className="text-center my-12">
         <h1 className="text-3xl font-bold">Welcome Back</h1>
         <p className="text-muted-foreground">Sign in to continue</p>
