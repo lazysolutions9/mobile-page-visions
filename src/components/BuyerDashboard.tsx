@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notificationSeller, setNotificationSeller] = useState<any>(null);
+  const notificationsPanelRef = useRef<HTMLDivElement>(null);
 
   // Fetch user's pincode on component mount and when returning to home view
   useEffect(() => {
@@ -242,11 +243,20 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
   }
 
   const handleNotificationClick = async (notification: any) => {
-    if (notification.message && notification.message.startsWith('Sale Live!') && notification.seller_id) {
+    if (notification.seller_id) {
+      // Mark notification as read in the database
+      if (!notification.is_read) {
+        await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('id', notification.id);
+        setNotifications(notifications.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
+      }
+      // Fetch seller details from sellerDetails table
       const { data: seller, error } = await supabase
         .from('sellerDetails')
         .select('*')
-        .eq('user_id', notification.seller_id)
+        .eq('userId', notification.seller_id)
         .single();
       if (!error && seller) {
         setNotificationSeller({ ...seller, userId: notification.seller_id });
@@ -255,6 +265,24 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
       }
     }
   };
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (
+        notificationsPanelRef.current &&
+        !notificationsPanelRef.current.contains(event.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   const renderContent = () => {
     if (activeView === 'profile') {
@@ -371,7 +399,10 @@ const BuyerDashboard = ({ user, onLogout, onSwitchToSeller, onSellWithUs }: Buye
                 )}
               </Button>
               {showNotifications && (
-                <div className="fixed right-4 top-20 w-80 bg-white border rounded-xl shadow-2xl z-[1050] max-h-96 overflow-y-auto animate-fade-in">
+                <div
+                  ref={notificationsPanelRef}
+                  className="fixed right-4 top-20 w-80 bg-white border rounded-xl shadow-2xl z-[1050] max-h-96 overflow-y-auto animate-fade-in"
+                >
                   <div className="flex items-center justify-between p-3 border-b bg-gray-50 rounded-t-xl">
                     <span className="font-semibold text-base">Notifications</span>
                     <Button variant="link" size="sm" onClick={markAllAsRead} disabled={unreadCount === 0}>Mark all as read</Button>
