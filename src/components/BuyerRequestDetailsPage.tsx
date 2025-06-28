@@ -71,6 +71,10 @@ export function BuyerRequestDetailsPage({ request, onBack, onViewSeller }: Buyer
     <div>
       <main className="p-6 space-y-4 pb-24">
         <p className="text-sm text-muted-foreground -mt-2 mb-4">{request.name} - Submitted 5 mins ago</p>
+        <div>
+          <h4 className="font-semibold">Pincode</h4>
+          <p className="text-sm text-muted-foreground">{request.pincode || "N/A"}</p>
+        </div>
         <h2 className="text-lg font-semibold">Seller Responses ({responses.length})</h2>
         <div className="space-y-4">
           {responses.length > 0 ? (

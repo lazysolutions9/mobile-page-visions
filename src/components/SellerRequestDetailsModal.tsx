@@ -73,10 +73,10 @@ export function SellerRequestDetailsModal({ isOpen, onOpenChange, request, onAcc
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{request.itemName}</DialogTitle>
-          <DialogDescription>
-            {request.type} from {request.customer}
-          </DialogDescription>
+          <DialogTitle>
+            <div className="font-semibold">Item Name</div>
+            <div>{request.itemName}</div>
+          </DialogTitle>
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div>
@@ -101,6 +101,10 @@ export function SellerRequestDetailsModal({ isOpen, onOpenChange, request, onAcc
           <div>
             <h4 className="font-semibold">Time</h4>
             <p className="text-sm text-muted-foreground">{new Date(request.created_at || request.date).toLocaleTimeString()}</p>
+          </div>
+          <div>
+            <h4 className="font-semibold">Pincode</h4>
+            <p className="text-sm text-muted-foreground">{request.pincode || "N/A"}</p>
           </div>
         </div>
         <DialogFooter>

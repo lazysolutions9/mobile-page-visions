@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { supabase } from "@/lib/supabase";
 
 interface SellerDetailsModalProps {
   isOpen: boolean;
@@ -15,6 +17,26 @@ interface SellerDetailsModalProps {
 }
 
 export function SellerDetailsModal({ isOpen, onOpenChange, seller }: SellerDetailsModalProps) {
+  const [sellerDetails, setSellerDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchSellerDetails = async () => {
+      if (!seller?.userId) return;
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('sellerDetails')
+        .select('pincode')
+        .eq('userId', seller.userId)
+        .single();
+      setSellerDetails(data);
+      setLoading(false);
+    };
+    if (isOpen && seller?.userId) {
+      fetchSellerDetails();
+    }
+  }, [isOpen, seller]);
+
   if (!seller) return null;
 
   return (
@@ -23,7 +45,6 @@ export function SellerDetailsModal({ isOpen, onOpenChange, seller }: SellerDetai
         <DialogHeader>
           <DialogTitle>Shop Name</DialogTitle>
           <DialogDescription>
-          
             {seller.shopName}
           </DialogDescription>
         </DialogHeader>
@@ -32,6 +53,12 @@ export function SellerDetailsModal({ isOpen, onOpenChange, seller }: SellerDetai
             <h4 className="font-semibold">Shop Address</h4>
             <p className="text-sm text-muted-foreground">
               {seller.shopAddress || "No address provided."}
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold">Pincode</h4>
+            <p className="text-sm text-muted-foreground">
+              {loading ? "Loading..." : (sellerDetails?.pincode ?? "No pincode provided.")}
             </p>
           </div>
           <div>
