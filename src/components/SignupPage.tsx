@@ -19,10 +19,26 @@ const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSignup = async () => {
-    if (!username.trim() || !password.trim() || !pincode.trim()) {
+    if (!username.trim()) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: "Username Required",
+        description: "Please enter a username.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!password.trim()) {
+      toast({
+        title: "Password Required",
+        description: "Please enter a password.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!pincode.trim()) {
+      toast({
+        title: "Pincode Required",
+        description: "Please enter your pincode.",
         variant: "destructive",
       });
       return;
@@ -100,7 +116,7 @@ const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="signup-username">Username</Label>
+          <Label htmlFor="signup-username">Username *</Label>
           <Input
             id="signup-username"
             type="text"
@@ -111,7 +127,7 @@ const SignupPage = ({ onSwitchToLogin, onSignupComplete }: SignupPageProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="signup-password">Password</Label>
+          <Label htmlFor="signup-password">Password *</Label>
           <div className="relative">
             <Input
               id="signup-password"
