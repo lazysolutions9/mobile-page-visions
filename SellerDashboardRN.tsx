@@ -36,6 +36,7 @@ interface SellerDashboardProps {
 const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
   const { user } = route.params;
   const [activeView, setActiveView] = useState('home');
+  const [activeTab, setActiveTab] = useState('incoming');
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [acceptedRequests, setAcceptedRequests] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -153,65 +154,82 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
     }
   };
 
+  const handleRequestClick = (request: any) => {
+    Alert.alert('Request Details', `Viewing details for: ${request.itemName}\n\nThis feature will be implemented soon.`);
+  };
+
+  const RequestList = ({ requests, actionText, emptyMessage }: { requests: any[], actionText: string, emptyMessage: string }) => (
+    <View style={styles.requestList}>
+      {requests.length === 0 ? (
+        <Text style={styles.emptyText}>{emptyMessage}</Text>
+      ) : (
+        requests.map((request) => (
+          <TouchableOpacity
+            key={request.id}
+            style={styles.requestItem}
+            onPress={() => handleRequestClick(request)}
+          >
+            <View style={styles.requestContent}>
+              <Text style={styles.requestName}>{request.itemName}</Text>
+              <Text style={styles.requestDate}>
+                Requested on: {new Date(request.created_at).toLocaleDateString()}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.actionButton}>
+              <Text style={styles.actionButtonText}>{actionText}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        ))
+      )}
+    </View>
+  );
+
   const renderHomeContent = () => (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.content}>
       <View style={styles.welcomeSection}>
         <Text style={styles.welcomeTitle}>Welcome, {user?.username || 'Seller'}!</Text>
         <Text style={styles.welcomeSubtitle}>Manage your incoming requests</Text>
       </View>
 
-      {/* Incoming Requests */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Incoming Requests ({incomingRequests.length})</Text>
-        <View style={styles.cardContent}>
-          {loading ? (
-            <Text style={styles.loadingText}>Loading requests...</Text>
-          ) : incomingRequests.length > 0 ? (
-            incomingRequests.map((request) => (
-              <TouchableOpacity
-                key={request.id}
-                style={styles.requestItem}
-                onPress={() => {
-                  Alert.alert('Request Details', `Viewing details for: ${request.itemName}\n\nThis feature will be implemented soon.`);
-                }}
-              >
-                <Text style={styles.requestName}>{request.itemName}</Text>
-                <Text style={styles.requestDate}>
-                  {new Date(request.created_at).toLocaleDateString()}
-                </Text>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No incoming requests at the moment.</Text>
-          )}
-        </View>
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'incoming' && styles.activeTab]}
+          onPress={() => setActiveTab('incoming')}
+        >
+          <Text style={[styles.tabText, activeTab === 'incoming' && styles.activeTabText]}>
+            Incoming ({incomingRequests.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'accepted' && styles.activeTab]}
+          onPress={() => setActiveTab('accepted')}
+        >
+          <Text style={[styles.tabText, activeTab === 'accepted' && styles.activeTabText]}>
+            Accepted ({acceptedRequests.length})
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Accepted Requests */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Accepted Requests ({acceptedRequests.length})</Text>
-        <View style={styles.cardContent}>
-          {acceptedRequests.length > 0 ? (
-            acceptedRequests.map((request) => (
-              <TouchableOpacity
-                key={request.id}
-                style={styles.requestItem}
-                onPress={() => {
-                  Alert.alert('Request Details', `Viewing details for: ${request.itemName}\n\nThis feature will be implemented soon.`);
-                }}
-              >
-                <Text style={styles.requestName}>{request.itemName}</Text>
-                <Text style={styles.requestDate}>
-                  {new Date(request.created_at).toLocaleDateString()}
-                </Text>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No accepted requests yet.</Text>
-          )}
-        </View>
-      </View>
-    </ScrollView>
+      {/* Tab Content */}
+      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+        {loading ? (
+          <Text style={styles.loadingText}>Loading requests...</Text>
+        ) : activeTab === 'incoming' ? (
+          <RequestList 
+            requests={incomingRequests} 
+            actionText="View" 
+            emptyMessage="You have no incoming requests." 
+          />
+        ) : (
+          <RequestList 
+            requests={acceptedRequests} 
+            actionText="Update" 
+            emptyMessage="You have no accepted requests." 
+          />
+        )}
+      </ScrollView>
+    </View>
   );
 
   const renderNotifications = () => (
@@ -291,16 +309,16 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.navItem, activeView === 'requests' && styles.activeNavItem]}
-          onPress={() => setActiveView('requests')}
+          style={styles.navItem}
+          onPress={() => navigation.navigate('BuyerDashboard', { user })}
         >
           <Ionicons 
-            name="list" 
+            name="repeat" 
             size={24} 
-            color={activeView === 'requests' ? '#3B82F6' : '#6B7280'} 
+            color="#6B7280"
           />
-          <Text style={[styles.navText, activeView === 'requests' && styles.activeNavText]}>
-            Requests
+          <Text style={styles.navText}>
+            Buyer View
           </Text>
         </TouchableOpacity>
         
@@ -439,10 +457,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
   },
-  card: {
+  tabsContainer: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 8,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -450,22 +468,44 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
   },
-  cardContent: {
+  activeTab: {
+    backgroundColor: '#3B82F6',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  activeTabText: {
+    color: '#FFFFFF',
+  },
+  tabContent: {
+    flex: 1,
+  },
+  requestList: {
     gap: 12,
   },
   requestItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  requestContent: {
+    flex: 1,
   },
   requestName: {
     fontSize: 16,
@@ -476,6 +516,17 @@ const styles = StyleSheet.create({
   requestDate: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  actionButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
   },
   loadingText: {
     fontSize: 14,

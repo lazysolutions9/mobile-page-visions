@@ -411,6 +411,16 @@ const ProfilePage = ({ navigation, route }: ProfilePageProps) => {
         {/* Actions Card */}
         {renderCard('Actions', (
           <View style={styles.actionsContainer}>
+            {userType === 'buyer' && user?.isSeller && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => navigation.navigate('SellerDashboard', { user })}
+              >
+                <Ionicons name="repeat" size={20} color="#374151" />
+                <Text style={styles.actionText}>Seller View</Text>
+              </TouchableOpacity>
+            )}
+            
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => setShowChangePasswordModal(true)}
