@@ -7,6 +7,7 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './src/lib/supabase';
@@ -48,6 +49,9 @@ const BuyerRequestDetailsPage = ({ navigation, route }: BuyerRequestDetailsProps
   const { user, request } = route.params;
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSellerModal, setShowSellerModal] = useState(false);
+  const [selectedSeller, setSelectedSeller] = useState<any>(null);
+  const [sellerLoading, setSellerLoading] = useState(false);
 
   useEffect(() => {
     fetchResponses();
@@ -117,12 +121,32 @@ const BuyerRequestDetailsPage = ({ navigation, route }: BuyerRequestDetailsProps
     );
   };
 
-  const handleViewSeller = (seller: any) => {
-    Alert.alert(
-      'Seller Details',
-      `Shop: ${seller.shopName || 'Unknown'}\n\nThis feature will be implemented soon.`,
-      [{ text: 'OK' }]
-    );
+  const handleViewSeller = async (seller: any) => {
+    if (!seller?.userId) {
+      Alert.alert('Error', 'Seller information not available.');
+      return;
+    }
+
+    setSellerLoading(true);
+    try {
+      const { data: sellerDetails, error } = await supabase
+        .from('sellerDetails')
+        .select('*')
+        .eq('userId', seller.userId)
+        .single();
+      
+      if (!error && sellerDetails) {
+        setSelectedSeller({ ...sellerDetails, userId: seller.userId });
+        setShowSellerModal(true);
+      } else {
+        Alert.alert('Error', 'Could not fetch seller details.');
+      }
+    } catch (error) {
+      console.error('Error fetching seller details:', error);
+      Alert.alert('Error', 'Could not fetch seller details.');
+    } finally {
+      setSellerLoading(false);
+    }
   };
 
   return (
@@ -201,6 +225,66 @@ const BuyerRequestDetailsPage = ({ navigation, route }: BuyerRequestDetailsProps
           <Text style={styles.primaryButtonText}>Close Request</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={showSellerModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSellerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.sellerModalContent}>
+            <View style={styles.sellerModalHeader}>
+              <Text style={styles.sellerModalTitle}>Shop Details</Text>
+              <TouchableOpacity
+                onPress={() => setShowSellerModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            {sellerLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading seller details...</Text>
+              </View>
+            ) : selectedSeller ? (
+              <View style={styles.sellerDetails}>
+                <View style={styles.sellerDetailItem}>
+                  <Text style={styles.sellerDetailLabel}>Shop Name</Text>
+                  <Text style={styles.sellerDetailValue}>{selectedSeller.shopName || 'N/A'}</Text>
+                </View>
+                
+                <View style={styles.sellerDetailItem}>
+                  <Text style={styles.sellerDetailLabel}>Shop Address</Text>
+                  <Text style={styles.sellerDetailValue}>{selectedSeller.shopAddress || 'No address provided'}</Text>
+                </View>
+                
+                <View style={styles.sellerDetailItem}>
+                  <Text style={styles.sellerDetailLabel}>Pincode</Text>
+                  <Text style={styles.sellerDetailValue}>{selectedSeller.pincode || 'No pincode provided'}</Text>
+                </View>
+                
+                <View style={styles.sellerDetailItem}>
+                  <Text style={styles.sellerDetailLabel}>Description/Notes</Text>
+                  <Text style={styles.sellerDetailValue}>{selectedSeller.notes || 'No notes provided'}</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Could not load seller details</Text>
+              </View>
+            )}
+            
+            <TouchableOpacity
+              style={styles.sellerModalButton}
+              onPress={() => setShowSellerModal(false)}
+            >
+              <Text style={styles.sellerModalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -345,6 +429,71 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#FFFFFF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sellerModalContent: {
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderRadius: 12,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  sellerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sellerModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  sellerDetails: {
+    marginBottom: 16,
+  },
+  sellerDetailItem: {
+    marginBottom: 12,
+  },
+  sellerDetailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  sellerDetailValue: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#EF4444',
+  },
+  sellerModalButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  sellerModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

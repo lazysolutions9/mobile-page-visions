@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar } from 'react-native';
+import { StatusBar, BackHandler, Alert } from 'react-native';
 import SignupPage from './SignupPageRN';
 import LoginPage from './LoginPageRN';
 import RoleSelection from './RoleSelectionRN';
@@ -30,8 +30,52 @@ type RootStackParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 
 const App = () => {
+  const navigationRef = useRef<any>(null);
+
+  useEffect(() => {
+    const backAction = () => {
+      const currentRoute = navigationRef.current?.getCurrentRoute();
+      
+      // Only show logout dialog on main dashboard screens
+      if (currentRoute?.name === 'BuyerDashboard' || currentRoute?.name === 'SellerDashboard') {
+        Alert.alert(
+          'Logout',
+          'Do you want to logout?',
+          [
+            {
+              text: 'Cancel',
+              onPress: () => null,
+              style: 'cancel',
+            },
+            {
+              text: 'Logout',
+              onPress: () => {
+                // Navigate back to Signup page (logout)
+                navigationRef.current?.reset({
+                  index: 0,
+                  routes: [{ name: 'Signup' }],
+                });
+              },
+              style: 'destructive',
+            },
+          ]
+        );
+        return true; // Prevent default back action
+      }
+      
+      return false; // Allow default back action for other screens
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, []);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
       <Stack.Navigator
         initialRouteName="Signup"

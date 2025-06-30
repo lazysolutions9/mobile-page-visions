@@ -49,6 +49,10 @@ const ProfilePage = ({ navigation, route }: ProfilePageProps) => {
   const [pendingSaleCredit, setPendingSaleCredit] = useState<number | null>(null);
   const [showBuyCreditPopup, setShowBuyCreditPopup] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isLoadingPincode, setIsLoadingPincode] = useState(true);
 
   // Fetch seller details for seller users
   useEffect(() => {
@@ -93,14 +97,28 @@ const ProfilePage = ({ navigation, route }: ProfilePageProps) => {
   useEffect(() => {
     const fetchUserPincode = async () => {
       if (!user) return;
-      const { data, error } = await supabase
-        .from('user')
-        .select('pincode')
-        .eq('id', user.id)
-        .single();
+      
+      setIsLoadingPincode(true);
+      
+      try {
+        const { data, error } = await supabase
+          .from('user')
+          .select('pincode')
+          .eq('id', user.id)
+          .single();
 
-      if (!error && data) {
-        setPincode(data.pincode || '');
+        if (!error && data && data.pincode) {
+          console.log('Setting pincode to:', data.pincode);
+          setPincode(String(data.pincode));
+        } else {
+          console.log('No pincode found');
+          setPincode('');
+        }
+      } catch (error) {
+        console.error('Error fetching pincode:', error);
+        setPincode('');
+      } finally {
+        setIsLoadingPincode(false);
       }
     };
 
@@ -257,6 +275,47 @@ const ProfilePage = ({ navigation, route }: ProfilePageProps) => {
     Linking.openURL('tel:+919888386663');
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
+    
+    if (!newPassword) {
+      Alert.alert('Error', 'Password cannot be empty.');
+      return;
+    }
+
+    if (!user) {
+      Alert.alert('Error', 'User not found. Please log in again.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      const { error } = await supabase
+        .from('user')
+        .update({ password: newPassword })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating password:', error);
+        Alert.alert('Error', 'Could not update password. Please try again.');
+      } else {
+        Alert.alert('Success', 'Your password has been changed.');
+        setNewPassword('');
+        setConfirmPassword('');
+        setShowChangePasswordModal(false);
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const renderCard = (title: string, children: React.ReactNode, icon?: string) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -299,7 +358,7 @@ const ProfilePage = ({ navigation, route }: ProfilePageProps) => {
                 style={[styles.input, !isEditingPincode && styles.disabledInput]}
                 value={pincode}
                 onChangeText={setPincode}
-                placeholder="Enter 6-digit pincode"
+                placeholder={isLoadingPincode ? "Loading..." : "Enter 6-digit pincode"}
                 maxLength={6}
                 keyboardType="numeric"
                 editable={isEditingPincode}
@@ -421,6 +480,16 @@ const ProfilePage = ({ navigation, route }: ProfilePageProps) => {
               </TouchableOpacity>
             )}
             
+            {userType === 'buyer' && !user?.isSeller && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => navigation.navigate('SellerSetup', { user })}
+              >
+                <Ionicons name="storefront" size={20} color="#374151" />
+                <Text style={styles.actionText}>Sell with Us</Text>
+              </TouchableOpacity>
+            )}
+            
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => setShowChangePasswordModal(true)}
@@ -494,13 +563,55 @@ const ProfilePage = ({ navigation, route }: ProfilePageProps) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Change Password</Text>
-            <Text style={styles.modalText}>This feature will be available soon.</Text>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setShowChangePasswordModal(false)}
-            >
-              <Text style={styles.modalButtonText}>Close</Text>
-            </TouchableOpacity>
+            <Text style={styles.modalDescription}>Enter your new password below.</Text>
+            
+            <View style={styles.passwordForm}>
+              <Text style={styles.passwordLabel}>New Password</Text>
+              <TextInput
+                style={styles.passwordInput}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Enter new password"
+                secureTextEntry={true}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              
+              <Text style={styles.passwordLabel}>Confirm Password</Text>
+              <TextInput
+                style={styles.passwordInput}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Confirm new password"
+                secureTextEntry={true}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setShowChangePasswordModal(false);
+                }}
+                disabled={isChangingPassword}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, isChangingPassword && styles.disabledButton]}
+                onPress={handleChangePassword}
+                disabled={isChangingPassword}
+              >
+                <Text style={styles.modalButtonText}>
+                  {isChangingPassword ? 'Saving...' : 'Save Changes'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -704,11 +815,50 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
+  modalDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  passwordForm: {
+    width: '100%',
+    gap: 16,
+    marginBottom: 24,
+  },
+  passwordLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  passwordInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
   modalButton: {
+    flex: 1,
     backgroundColor: '#3B82F6',
     borderRadius: 8,
     paddingHorizontal: 24,
     paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalButtonText: {
     color: '#FFFFFF',

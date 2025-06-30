@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Alert,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './src/lib/supabase';
@@ -35,6 +36,101 @@ interface LoginProps {
   route: LoginRouteProp;
 }
 
+// Move modals outside the main component to prevent re-rendering
+const ForgotPasswordModal = ({ 
+  visible, 
+  onClose, 
+  resetUsername, 
+  setResetUsername, 
+  onContinue 
+}: {
+  visible: boolean;
+  onClose: () => void;
+  resetUsername: string;
+  setResetUsername: (value: string) => void;
+  onContinue: (username: string) => void;
+}) => (
+  <Modal
+    visible={visible}
+    animationType="slide"
+    transparent={true}
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Forgot Password</Text>
+          <Text style={styles.modalDescription}>
+            Enter your username and we'll help you reset your password.
+          </Text>
+        </View>
+
+        <View style={styles.modalBody}>
+          <Text style={styles.inputLabel}>Username</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="your_username"
+            value={resetUsername}
+            onChangeText={setResetUsername}
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.modalFooter}>
+          <TouchableOpacity
+            style={styles.outlineButton}
+            onPress={onClose}
+          >
+            <Text style={styles.outlineButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => onContinue(resetUsername)}
+          >
+            <Text style={styles.primaryButtonText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </Modal>
+);
+
+const SetNewPasswordModal = ({ 
+  visible, 
+  onClose, 
+  resetUsername, 
+  onPasswordSet 
+}: {
+  visible: boolean;
+  onClose: () => void;
+  resetUsername: string;
+  onPasswordSet: () => void;
+}) => (
+  <Modal
+    visible={visible}
+    animationType="slide"
+    transparent={true}
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Set New Password</Text>
+          <Text style={styles.modalDescription}>
+            Please enter your new password below.
+          </Text>
+        </View>
+
+        <SetNewPasswordContent
+          username={resetUsername}
+          onPasswordSet={onPasswordSet}
+          onCancel={onClose}
+        />
+      </View>
+    </View>
+  </Modal>
+);
+
 const LoginPage = ({ navigation }: LoginProps) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -45,6 +141,9 @@ const LoginPage = ({ navigation }: LoginProps) => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    // Dismiss keyboard on login button press
+    Keyboard.dismiss();
+
     if (!username.trim() || !password.trim()) {
       Alert.alert('Error', 'Please enter both username and password.');
       return;
@@ -58,7 +157,7 @@ const LoginPage = ({ navigation }: LoginProps) => {
       const { data: user, error } = await supabase
         .from('user')
         .select('*')
-        .eq('username', username.trim())
+        .ilike('username', username.trim())
         .single();
 
       if (error || !user) {
@@ -67,21 +166,14 @@ const LoginPage = ({ navigation }: LoginProps) => {
       }
 
       if (user.password === password) {
-        Alert.alert('Login Successful!', 'Welcome back!', [
-          {
-            text: 'Continue',
-            onPress: () => {
-              // Check if user is a seller or buyer and navigate accordingly
-              if (user.isSeller === true) {
-                // User is a seller, navigate to seller dashboard
-                navigation.navigate('SellerDashboard', { user });
-              } else {
-                // User is a buyer (isSeller is false or null), navigate to buyer dashboard
-                navigation.navigate('BuyerDashboard', { user });
-              }
-            }
-          }
-        ]);
+        // Check if user is a seller or buyer and navigate accordingly
+        if (user.isSeller === true) {
+          // User is a seller, navigate to seller dashboard
+          navigation.navigate('SellerDashboard', { user });
+        } else {
+          // User is a buyer (isSeller is false or null), navigate to buyer dashboard
+          navigation.navigate('BuyerDashboard', { user });
+        }
       } else {
         Alert.alert('Login Error', 'Invalid username or password.');
       }
@@ -93,88 +185,39 @@ const LoginPage = ({ navigation }: LoginProps) => {
     }
   };
 
-  const handleForgotPasswordContinue = (username: string) => {
-    setIsForgotPasswordOpen(false);
-    setResetUsername(username);
-    setIsSetNewPasswordOpen(true);
+  const handleForgotPasswordContinue = async (username: string) => {
+    if (!username.trim()) {
+      Alert.alert('Error', 'Please enter a username.');
+      return;
+    }
+
+    try {
+      // Check if username exists in the database (case insensitive)
+      const { data: user, error } = await supabase
+        .from('user')
+        .select('username')
+        .ilike('username', username.trim())
+        .single();
+
+      if (error || !user) {
+        Alert.alert('Error', 'Username not found. Please check your username and try again.');
+        return;
+      }
+
+      // Username exists, proceed to password reset
+      setIsForgotPasswordOpen(false);
+      setResetUsername(username);
+      setIsSetNewPasswordOpen(true);
+    } catch (error) {
+      console.error('Username check error:', error);
+      Alert.alert('Error', 'Username not found. Please check your username and try again.');
+    }
   };
 
   const handlePasswordSet = () => {
     setIsSetNewPasswordOpen(false);
     Alert.alert('Password Reset', 'Your password has been updated. Please login with your new password.');
   };
-
-  const ForgotPasswordModal = () => (
-    <Modal
-      visible={isForgotPasswordOpen}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setIsForgotPasswordOpen(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Forgot Password</Text>
-            <Text style={styles.modalDescription}>
-              Enter your username and we'll help you reset your password.
-            </Text>
-          </View>
-
-          <View style={styles.modalBody}>
-            <Text style={styles.inputLabel}>Username</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="your_username"
-              value={resetUsername}
-              onChangeText={setResetUsername}
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={styles.outlineButton}
-              onPress={() => setIsForgotPasswordOpen(false)}
-            >
-              <Text style={styles.outlineButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => handleForgotPasswordContinue(resetUsername)}
-            >
-              <Text style={styles.primaryButtonText}>Continue</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const SetNewPasswordModal = () => (
-    <Modal
-      visible={isSetNewPasswordOpen}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setIsSetNewPasswordOpen(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Set New Password</Text>
-            <Text style={styles.modalDescription}>
-              Please enter your new password below.
-            </Text>
-          </View>
-
-          <SetNewPasswordContent
-            username={resetUsername}
-            onPasswordSet={handlePasswordSet}
-            onCancel={() => setIsSetNewPasswordOpen(false)}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -194,6 +237,8 @@ const LoginPage = ({ navigation }: LoginProps) => {
               onChangeText={setUsername}
               autoCapitalize="none"
               autoCorrect={false}
+              blurOnSubmit={false}
+              returnKeyType="next"
             />
           </View>
 
@@ -208,6 +253,9 @@ const LoginPage = ({ navigation }: LoginProps) => {
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
+                blurOnSubmit={true}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
@@ -231,8 +279,9 @@ const LoginPage = ({ navigation }: LoginProps) => {
 
           <TouchableOpacity
             style={[styles.loginButton, loading && styles.buttonDisabled]}
-            onPress={handleLogin}
+            onPressIn={handleLogin}
             disabled={loading}
+            activeOpacity={0.7}
           >
             <Text style={styles.loginButtonText}>
               {loading ? 'Logging in...' : 'Login'}
@@ -253,8 +302,19 @@ const LoginPage = ({ navigation }: LoginProps) => {
         </View>
       </ScrollView>
 
-      <ForgotPasswordModal />
-      <SetNewPasswordModal />
+      <ForgotPasswordModal 
+        visible={isForgotPasswordOpen}
+        onClose={() => setIsForgotPasswordOpen(false)}
+        resetUsername={resetUsername}
+        setResetUsername={setResetUsername}
+        onContinue={handleForgotPasswordContinue}
+      />
+      <SetNewPasswordModal 
+        visible={isSetNewPasswordOpen}
+        onClose={() => setIsSetNewPasswordOpen(false)}
+        resetUsername={resetUsername}
+        onPasswordSet={handlePasswordSet}
+      />
     </SafeAreaView>
   );
 };
@@ -288,7 +348,10 @@ const SetNewPasswordContent = ({ username, onPasswordSet, onCancel }: SetNewPass
     try {
       const { error } = await supabase
         .from('user')
-        .update({ password })
+        .update({ 
+          password,
+          updated_at: new Date().toISOString()
+        })
         .eq('username', username);
 
       if (error) {

@@ -7,6 +7,9 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  Modal,
+  TextInput,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './src/lib/supabase';
@@ -42,6 +45,10 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [requestNotes, setRequestNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -155,7 +162,89 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
   };
 
   const handleRequestClick = (request: any) => {
-    Alert.alert('Request Details', `Viewing details for: ${request.itemName}\n\nThis feature will be implemented soon.`);
+    setSelectedRequest(request);
+    setRequestNotes(request.notes || '');
+    setShowRequestModal(true);
+  };
+
+  const handleAcceptRequest = async () => {
+    if (!user || !selectedRequest) {
+      Alert.alert('Error', 'Could not process request.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('sellerResponse').insert([
+        { orderId: selectedRequest.id, userId: user.id, notes: requestNotes }
+      ]);
+
+      if (error) {
+        Alert.alert('Error', 'Could not accept the request. Please try again.');
+        return;
+      }
+
+      // Update order status to accepted
+      await supabase.from('order').update({ status: 'accepted' }).eq('id', selectedRequest.id);
+
+      Alert.alert('Success', `Request for "${selectedRequest.itemName}" has been accepted.`);
+      setShowRequestModal(false);
+      fetchOrders(); // Refresh the lists
+    } catch (error) {
+      console.error('Error accepting request:', error);
+      Alert.alert('Error', 'Could not accept the request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateRequest = async () => {
+    if (!user || !selectedRequest) {
+      Alert.alert('Error', 'Could not update request.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('sellerResponse')
+        .update({ notes: requestNotes })
+        .eq('orderId', selectedRequest.id)
+        .eq('userId', user.id);
+
+      if (error) {
+        Alert.alert('Error', 'Could not update the request. Please try again.');
+        return;
+      }
+
+      Alert.alert('Success', `Request for "${selectedRequest.itemName}" has been updated.`);
+      setShowRequestModal(false);
+      fetchOrders(); // Refresh the lists
+    } catch (error) {
+      console.error('Error updating request:', error);
+      Alert.alert('Error', 'Could not update the request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleNotificationClick = (notification: any) => {
+    // Find the request in incoming or accepted
+    const allRequests = [...incomingRequests, ...acceptedRequests];
+    const req = allRequests.find(r => r.id === notification.order_id);
+    if (req) {
+      setSelectedRequest(req);
+      setRequestNotes(req.notes || '');
+      setShowRequestModal(true);
+      setShowNotifications(false);
+    } else {
+      Alert.alert('Request not found', 'This request is not available.');
+    }
+    // Optionally mark as read
+    if (!notification.is_read) {
+      supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
+      setNotifications(notifications.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
+    }
   };
 
   const RequestList = ({ requests, actionText, emptyMessage }: { requests: any[], actionText: string, emptyMessage: string }) => (
@@ -175,9 +264,9 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
                 Requested on: {new Date(request.created_at).toLocaleDateString()}
               </Text>
             </View>
-            <TouchableOpacity style={styles.actionButton}>
+            <View style={styles.actionButton}>
               <Text style={styles.actionButtonText}>{actionText}</Text>
-            </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         ))
       )}
@@ -252,9 +341,7 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
           <TouchableOpacity
             key={n.id}
             style={[styles.notificationItem, !n.is_read && styles.unreadNotification]}
-            onPress={() => {
-              Alert.alert('Notification', n.message);
-            }}
+            onPress={() => handleNotificationClick(n)}
           >
             <Text style={[styles.notificationText, !n.is_read && styles.unreadText]}>
               {n.message}
@@ -270,6 +357,7 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Seller Dashboard</Text>
@@ -291,6 +379,115 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
 
       {/* Main Content */}
       {renderHomeContent()}
+
+      {/* Request Details Modal */}
+      <Modal
+        visible={showRequestModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowRequestModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.requestModalContent}>
+            <View style={styles.requestModalHeader}>
+              <Text style={styles.requestModalTitle}>Request Details</Text>
+              <TouchableOpacity
+                onPress={() => setShowRequestModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            {selectedRequest && (
+              <View style={styles.requestDetails}>
+                <View style={styles.requestDetailItem}>
+                  <Text style={styles.requestDetailLabel}>Item Name</Text>
+                  <Text style={styles.requestDetailValue}>{selectedRequest.itemName}</Text>
+                </View>
+                
+                <View style={styles.requestDetailItem}>
+                  <Text style={styles.requestDetailLabel}>Date</Text>
+                  <Text style={styles.requestDetailValue}>
+                    {new Date(selectedRequest.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
+                
+                <View style={styles.requestDetailItem}>
+                  <Text style={styles.requestDetailLabel}>Time</Text>
+                  <Text style={styles.requestDetailValue}>
+                    {new Date(selectedRequest.created_at).toLocaleTimeString()}
+                  </Text>
+                </View>
+                
+                <View style={styles.requestDetailItem}>
+                  <Text style={styles.requestDetailLabel}>Pincode</Text>
+                  <Text style={styles.requestDetailValue}>{selectedRequest.pincode || 'N/A'}</Text>
+                </View>
+                
+                <View style={styles.requestDetailItem}>
+                  <Text style={styles.requestDetailLabel}>Notes</Text>
+                  {selectedRequest.status === 'incoming' || selectedRequest.status === 'accepted' ? (
+                    <TextInput
+                      style={styles.notesInput}
+                      value={requestNotes}
+                      onChangeText={setRequestNotes}
+                      placeholder="Add a note for the buyer..."
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                    />
+                  ) : (
+                    <Text style={styles.requestDetailValue}>
+                      {requestNotes || 'No notes provided.'}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+            
+            <View style={styles.requestModalButtons}>
+              {selectedRequest?.status === 'incoming' ? (
+                <TouchableOpacity
+                  style={[styles.requestModalButton, styles.acceptButton, isSubmitting && styles.disabledButton]}
+                  onPress={handleAcceptRequest}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.requestModalButtonText}>
+                    {isSubmitting ? 'Accepting...' : 'Accept'}
+                  </Text>
+                </TouchableOpacity>
+              ) : selectedRequest?.status === 'accepted' ? (
+                <>
+                  <TouchableOpacity
+                    style={[styles.requestModalButton, styles.cancelButton]}
+                    onPress={() => setShowRequestModal(false)}
+                    disabled={isSubmitting}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.requestModalButton, styles.updateButton, isSubmitting && styles.disabledButton]}
+                    onPress={handleUpdateRequest}
+                    disabled={isSubmitting}
+                  >
+                    <Text style={styles.requestModalButtonText}>
+                      {isSubmitting ? 'Updating...' : 'Update'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.requestModalButton}
+                  onPress={() => setShowRequestModal(false)}
+                >
+                  <Text style={styles.requestModalButtonText}>Close</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
@@ -348,7 +545,8 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 20,
+    paddingTop: 40,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -564,6 +762,89 @@ const styles = StyleSheet.create({
   activeNavText: {
     color: '#3B82F6',
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  requestModalContent: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  requestModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  requestModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  requestDetails: {
+    marginBottom: 20,
+  },
+  requestDetailItem: {
+    marginBottom: 8,
+  },
+  requestDetailLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  requestDetailValue: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 4,
+    padding: 12,
+    marginBottom: 12,
+  },
+  requestModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  requestModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  requestModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  acceptButton: {
+    backgroundColor: '#3B82F6',
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  updateButton: {
+    backgroundColor: '#10B981',
+  },
+  disabledButton: {
+    backgroundColor: '#9CA3AF',
   },
 });
 

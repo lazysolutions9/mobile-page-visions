@@ -9,6 +9,9 @@ import {
   Alert,
   SafeAreaView,
   FlatList,
+  TouchableWithoutFeedback,
+  Modal,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './src/lib/supabase';
@@ -48,6 +51,7 @@ interface Notification {
   message: string;
   is_read: boolean;
   created_at: string;
+  seller_id?: string;
 }
 
 const BuyerDashboard = ({ navigation, route }: BuyerDashboardProps) => {
@@ -59,6 +63,9 @@ const BuyerDashboard = ({ navigation, route }: BuyerDashboardProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSellerModal, setShowSellerModal] = useState(false);
+  const [selectedSeller, setSelectedSeller] = useState<any>(null);
+  const [sellerLoading, setSellerLoading] = useState(false);
 
   // Fetch user's pincode on component mount
   useEffect(() => {
@@ -159,6 +166,9 @@ const BuyerDashboard = ({ navigation, route }: BuyerDashboardProps) => {
   };
 
   const handleCreateRequest = async () => {
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+    
     if (!itemName.trim()) {
       Alert.alert('Request cannot be empty', 'Please enter an item name.');
       return;
@@ -263,17 +273,44 @@ const BuyerDashboard = ({ navigation, route }: BuyerDashboardProps) => {
 
   const handleNotificationClick = async (notification: Notification) => {
     // Mark notification as read
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notification.id);
-    
-    setNotifications(notifications.map(n => 
-      n.id === notification.id ? { ...n, is_read: true } : n
-    ));
+    if (!notification.is_read) {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notification.id);
+      
+      setNotifications(notifications.map(n => 
+        n.id === notification.id ? { ...n, is_read: true } : n
+      ));
+    }
 
-    // TODO: Navigate to appropriate page based on notification
-    Alert.alert('Notification', notification.message);
+    // If notification has seller_id, fetch and show seller details
+    if (notification.seller_id) {
+      setSellerLoading(true);
+      try {
+        const { data: seller, error } = await supabase
+          .from('sellerDetails')
+          .select('*')
+          .eq('userId', notification.seller_id)
+          .single();
+        
+        if (!error && seller) {
+          setSelectedSeller({ ...seller, userId: notification.seller_id });
+          setShowNotifications(false);
+          setShowSellerModal(true);
+        } else {
+          Alert.alert('Error', 'Could not fetch seller details.');
+        }
+      } catch (error) {
+        console.error('Error fetching seller details:', error);
+        Alert.alert('Error', 'Could not fetch seller details.');
+      } finally {
+        setSellerLoading(false);
+      }
+    } else {
+      // For notifications without seller_id, just show the message
+      Alert.alert('Notification', notification.message);
+    }
   };
 
   const handleRequestsTabPress = () => {
@@ -341,37 +378,47 @@ const BuyerDashboard = ({ navigation, route }: BuyerDashboardProps) => {
   );
 
   const renderNotifications = () => (
-    <View style={styles.notificationsPanel}>
-      <View style={styles.notificationsHeader}>
-        <Text style={styles.notificationsTitle}>Notifications</Text>
-        <TouchableOpacity
-          onPress={markAllAsRead}
-          disabled={unreadCount === 0}
-        >
-          <Text style={[styles.markAllRead, unreadCount === 0 && styles.disabledText]}>
-            Mark all as read
-          </Text>
-        </TouchableOpacity>
-      </View>
-      {notifications.length === 0 ? (
-        <Text style={styles.emptyText}>No notifications</Text>
-      ) : (
-        notifications.map(n => (
+    <>
+      {/* Backdrop overlay */}
+      <TouchableWithoutFeedback onPress={() => setShowNotifications(false)}>
+        <View style={styles.backdrop} />
+      </TouchableWithoutFeedback>
+      
+      {/* Notifications panel */}
+      <View style={styles.notificationsPanel}>
+        <View style={styles.notificationsHeader}>
+          <Text style={styles.notificationsTitle}>Notifications</Text>
           <TouchableOpacity
-            key={n.id}
-            style={[styles.notificationItem, !n.is_read && styles.unreadNotification]}
-            onPress={() => handleNotificationClick(n)}
+            onPress={markAllAsRead}
+            disabled={unreadCount === 0}
           >
-            <Text style={[styles.notificationText, !n.is_read && styles.unreadText]}>
-              {n.message}
-            </Text>
-            <Text style={styles.notificationTime}>
-              {new Date(n.created_at).toLocaleString()}
+            <Text style={[styles.markAllRead, unreadCount === 0 && styles.disabledText]}>
+              Mark all as read
             </Text>
           </TouchableOpacity>
-        ))
-      )}
-    </View>
+        </View>
+        <ScrollView style={styles.notificationsList} showsVerticalScrollIndicator={false}>
+          {notifications.length === 0 ? (
+            <Text style={styles.emptyText}>No notifications</Text>
+          ) : (
+            notifications.map(n => (
+              <TouchableOpacity
+                key={n.id}
+                style={[styles.notificationItem, !n.is_read && styles.unreadNotification]}
+                onPress={() => handleNotificationClick(n)}
+              >
+                <Text style={[styles.notificationText, !n.is_read && styles.unreadText]}>
+                  {n.message}
+                </Text>
+                <Text style={styles.notificationTime}>
+                  {new Date(n.created_at).toLocaleString()}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    </>
   );
 
   return (
@@ -391,9 +438,72 @@ const BuyerDashboard = ({ navigation, route }: BuyerDashboardProps) => {
               </View>
             )}
           </TouchableOpacity>
-          {showNotifications && renderNotifications()}
         </View>
       </View>
+
+      {/* Notifications overlay - rendered outside header */}
+      {showNotifications && renderNotifications()}
+
+      {/* Seller Details Modal */}
+      <Modal
+        visible={showSellerModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSellerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.sellerModalContent}>
+            <View style={styles.sellerModalHeader}>
+              <Text style={styles.sellerModalTitle}>Shop Details</Text>
+              <TouchableOpacity
+                onPress={() => setShowSellerModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            {sellerLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading seller details...</Text>
+              </View>
+            ) : selectedSeller ? (
+              <View style={styles.sellerDetails}>
+                <View style={styles.sellerDetailItem}>
+                  <Text style={styles.sellerDetailLabel}>Shop Name</Text>
+                  <Text style={styles.sellerDetailValue}>{selectedSeller.shopName || 'N/A'}</Text>
+                </View>
+                
+                <View style={styles.sellerDetailItem}>
+                  <Text style={styles.sellerDetailLabel}>Shop Address</Text>
+                  <Text style={styles.sellerDetailValue}>{selectedSeller.shopAddress || 'No address provided'}</Text>
+                </View>
+                
+                <View style={styles.sellerDetailItem}>
+                  <Text style={styles.sellerDetailLabel}>Pincode</Text>
+                  <Text style={styles.sellerDetailValue}>{selectedSeller.pincode || 'No pincode provided'}</Text>
+                </View>
+                
+                <View style={styles.sellerDetailItem}>
+                  <Text style={styles.sellerDetailLabel}>Description/Notes</Text>
+                  <Text style={styles.sellerDetailValue}>{selectedSeller.notes || 'No notes provided'}</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Could not load seller details</Text>
+              </View>
+            )}
+            
+            <TouchableOpacity
+              style={styles.sellerModalButton}
+              onPress={() => setShowSellerModal(false)}
+            >
+              <Text style={styles.sellerModalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Main Content */}
       {renderHomeContent()}
@@ -461,6 +571,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     position: 'relative',
+    zIndex: 10,
   },
   headerTitle: {
     fontSize: 20,
@@ -470,6 +581,7 @@ const styles = StyleSheet.create({
   notificationButton: {
     position: 'absolute',
     right: 16,
+    zIndex: 20,
   },
   bellButton: {
     position: 'relative',
@@ -490,27 +602,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 100,
+  },
   notificationsPanel: {
     position: 'absolute',
-    top: 50,
-    right: 0,
-    width: 300,
+    top: 80,
+    right: 16,
+    width: 320,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
     maxHeight: 400,
+    zIndex: 101,
   },
   notificationsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
@@ -529,6 +651,9 @@ const styles = StyleSheet.create({
   disabledText: {
     color: '#9CA3AF',
   },
+  notificationsList: {
+    maxHeight: 320,
+  },
   notificationItem: {
     padding: 16,
     borderBottomWidth: 1,
@@ -542,6 +667,7 @@ const styles = StyleSheet.create({
   notificationText: {
     fontSize: 14,
     color: '#374151',
+    lineHeight: 20,
   },
   unreadText: {
     fontWeight: '600',
@@ -660,6 +786,80 @@ const styles = StyleSheet.create({
   },
   activeNavText: {
     color: '#3B82F6',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sellerModalContent: {
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderRadius: 12,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  sellerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sellerModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+  },
+  sellerDetails: {
+    marginBottom: 16,
+  },
+  sellerDetailItem: {
+    marginBottom: 8,
+  },
+  sellerDetailLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  sellerDetailValue: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#EF4444',
+  },
+  sellerModalButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  sellerModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
