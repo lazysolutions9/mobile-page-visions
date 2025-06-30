@@ -26,6 +26,18 @@
     "web": {
       "favicon": "./public/favicon.ico"
     },
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "5530d726-4651-4b1d-8c4f-0d5eb8e7a521"
+      }
+    },
+    "owner": "lazysolutions9",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5530d726-4651-4b1d-8c4f-0d5eb8e7a521"
+    }
   }
-} 
+}
