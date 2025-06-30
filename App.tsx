@@ -2,15 +2,15 @@ import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar, BackHandler, Alert } from 'react-native';
-import SignupPage from './SignupPageRN';
-import LoginPage from './LoginPageRN';
-import RoleSelection from './RoleSelectionRN';
-import BuyerDashboard from './BuyerDashboardRN';
-import SellerDashboard from './SellerDashboardRN';
-import SellerSetup from './SellerSetupRN';
-import ProfilePage from './ProfilePageRN';
-import BuyerRequestsListPage from './BuyerRequestsListPageRN';
-import BuyerRequestDetailsPage from './BuyerRequestDetailsPageRN';
+import SignupPage from './components/SignupPageRN';
+import LoginPage from './components/LoginPageRN';
+import RoleSelection from './components/RoleSelectionRN';
+import BuyerDashboard from './components/BuyerDashboardRN';
+import SellerDashboard from './components/SellerDashboardRN';
+import SellerSetup from './components/SellerSetupRN';
+import ProfilePage from './components/ProfilePageRN';
+import BuyerRequestsListPage from './components/BuyerRequestsListPageRN';
+import BuyerRequestDetailsPage from './components/BuyerRequestDetailsPageRN';
 
 // You'll need to create LoginPageRN as well
 // import LoginPage from './LoginPageRN';
