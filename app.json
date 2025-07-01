@@ -4,10 +4,10 @@
     "slug": "mobile-page-visions",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./public/logo1.png",
+    "icon": "./fikloLogo.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./public/logo1.png",
+      "image": "./fikloLogo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./public/logo1.png",
+        "foregroundImage": "./fikloLogo.png",
         "backgroundColor": "#ffffff"
       }
     },
