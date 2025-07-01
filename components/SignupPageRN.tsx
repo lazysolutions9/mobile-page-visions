@@ -103,7 +103,7 @@ const SignupPage = ({ navigation }: SignupPageProps) => {
       }
 
       if (data) {
-        navigation.navigate('RoleSelection', { user: data });
+              navigation.navigate('RoleSelection', { user: data });
       }
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');

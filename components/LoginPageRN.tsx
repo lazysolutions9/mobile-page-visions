@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
+import notificationService from '../lib/notificationService';
 
 type RootStackParamList = {
   Signup: undefined;
@@ -166,6 +167,16 @@ const LoginPage = ({ navigation }: LoginProps) => {
       }
 
       if (user.password === password) {
+        // Save push token for the user
+        const pushToken = notificationService.getExpoPushToken();
+        console.log('Push token for user:', user.username, ':', pushToken);
+        if (pushToken) {
+          await notificationService.saveTokenToDatabase(user.id, pushToken);
+          console.log('Push token saved successfully for user:', user.username);
+        } else {
+          console.log('No push token available for user:', user.username);
+        }
+
         // Check if user is a seller or buyer and navigate accordingly
         if (user.isSeller === true) {
           // User is a seller, navigate to seller dashboard

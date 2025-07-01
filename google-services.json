@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "671823461034",
+    "project_id": "fiklo-391f3",
+    "storage_bucket": "fiklo-391f3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:671823461034:android:333f75624f27afead12ed3",
+        "android_client_info": {
+          "package_name": "com.lazysolutions.fiklo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBICe-aKt5gyxOQvetcd0vHhxVQRjcQlNI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

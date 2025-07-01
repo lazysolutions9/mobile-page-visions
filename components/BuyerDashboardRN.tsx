@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   Modal,
   Keyboard,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -28,6 +29,7 @@ type RootStackParamList = {
   ProfilePage: { user: any; userType: 'buyer' | 'seller' };
   BuyerRequestsList: { user: any };
   BuyerRequestDetails: { user: any; request: any };
+  TestNotification: undefined;
 };
 
 type BuyerDashboardNavigationProp = StackNavigationProp<RootStackParamList, 'BuyerDashboard'>;
@@ -419,10 +421,17 @@ const BuyerDashboard = ({ navigation, route }: BuyerDashboardProps) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Home</Text>
-        <View style={styles.notificationButton}>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={() => navigation.navigate('TestNotification')}
+          >
+            <Ionicons name="flask" size={20} color="#3B82F6" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.bellButton}
             onPress={() => setShowNotifications(!showNotifications)}
@@ -561,8 +570,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingTop: 44, // Add top padding for status bar
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -573,6 +583,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 40, // Add margin to prevent overlap with notification button
+  },
+  headerButtons: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  testButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
   },
   notificationButton: {
     position: 'absolute',

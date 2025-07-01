@@ -18,6 +18,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.lazysolutions.mobilepagevisions",
       "adaptiveIcon": {
         "foregroundImage": "./public/logo1.png",
         "backgroundColor": "#ffffff"
@@ -26,7 +27,15 @@
     "web": {
       "favicon": "./public/favicon.ico"
     },
-    "plugins": [],
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./public/logo1.png",
+          "color": "#ffffff"
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "5530d726-4651-4b1d-8c4f-0d5eb8e7a521"

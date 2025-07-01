@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Alert,
   Modal,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -146,6 +147,7 @@ const BuyerRequestDetailsPage = ({ navigation, route }: BuyerRequestDetailsProps
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -293,6 +295,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingTop: 44, // Add top padding for status bar
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
@@ -300,6 +303,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 4,
+    width: 40, // Fixed width for back button
+    alignItems: 'center',
   },
   headerTitle: {
     flex: 1,
@@ -307,9 +312,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111827',
     textAlign: 'center',
+    marginHorizontal: 8, // Add margin to prevent overlap
   },
   headerSpacer: {
-    width: 32,
+    width: 40, // Match back button width
   },
   content: {
     flex: 1,
