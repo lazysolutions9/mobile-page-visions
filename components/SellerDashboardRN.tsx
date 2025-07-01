@@ -10,6 +10,11 @@ import {
   Modal,
   TextInput,
   StatusBar,
+  RefreshControl,
+  Keyboard,
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -49,14 +54,31 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [requestNotes, setRequestNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [previousRequestCount, setPreviousRequestCount] = useState(0);
 
   useEffect(() => {
     fetchOrders();
     fetchNotifications();
+
+    // Set up auto-refresh every 40 seconds
+    const interval = setInterval(() => {
+      fetchOrders(true); // Pass true to indicate auto-refresh
+      fetchNotifications();
+    }, 40000); // 40 seconds
+
+    // Cleanup interval on component unmount
+    return () => {
+      clearInterval(interval);
+    };
   }, [user]);
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (isAutoRefresh = false) => {
+    if (!isAutoRefresh) {
+      setLoading(true);
+    }
     if (!user) {
       Alert.alert('Authentication Error', 'Could not authenticate user.');
       setLoading(false);
@@ -116,15 +138,31 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
         if (allOrders) {
           const respondedOrderIds = new Set((sellerResponses || []).map((res: any) => res.orderId));
           const incoming = allOrders.filter((order: any) => !respondedOrderIds.has(order.id));
-          setIncomingRequests(incoming.map(req => ({ ...req, status: 'incoming', pincode: req.pincode })));
+          const newIncomingRequests = incoming.map(req => ({ ...req, status: 'incoming', pincode: req.pincode }));
+          setIncomingRequests(newIncomingRequests);
+          
+          // Check for new requests during auto-refresh
+          if (isAutoRefresh && newIncomingRequests.length > previousRequestCount) {
+            const newCount = newIncomingRequests.length - previousRequestCount;
+            // Show subtle notification only if there are new requests
+            if (newCount > 0) {
+              // You can add a subtle toast or notification here if needed
+              console.log(`Found ${newCount} new request(s)`);
+            }
+          }
+          setPreviousRequestCount(newIncomingRequests.length);
         } else {
           setIncomingRequests([]);
+          setPreviousRequestCount(0);
         }
       }
     } catch (error) {
       Alert.alert('Error', 'Could not fetch orders.');
     } finally {
-      setLoading(false);
+      setLastRefreshTime(new Date());
+      if (!isAutoRefresh) {
+        setLoading(false);
+      }
     }
   };
 
@@ -141,6 +179,20 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
       }
     } catch (error) {
       Alert.alert('Error', 'Could not fetch notifications.');
+    }
+  };
+
+  const handlePullToRefresh = async () => {
+    setIsPullRefreshing(true);
+    try {
+      await Promise.all([
+        fetchOrders(),
+        fetchNotifications()
+      ]);
+    } catch (error) {
+      console.error('Pull to refresh error:', error);
+    } finally {
+      setIsPullRefreshing(false);
     }
   };
 
@@ -188,6 +240,7 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
 
       Alert.alert('Success', `Request for "${selectedRequest.itemName}" has been accepted.`);
       setShowRequestModal(false);
+      Keyboard.dismiss();
       fetchOrders(); // Refresh the lists
     } catch (error) {
       Alert.alert('Error', 'Could not accept the request. Please try again.');
@@ -217,6 +270,7 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
 
       Alert.alert('Success', `Request for "${selectedRequest.itemName}" has been updated.`);
       setShowRequestModal(false);
+      Keyboard.dismiss();
       fetchOrders(); // Refresh the lists
     } catch (error) {
       Alert.alert('Error', 'Could not update the request. Please try again.');
@@ -275,6 +329,11 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
       <View style={styles.welcomeSection}>
         <Text style={styles.welcomeTitle}>Welcome, {user?.username || 'Seller'}!</Text>
         <Text style={styles.welcomeSubtitle}>Manage your incoming requests</Text>
+        {lastRefreshTime && (
+          <Text style={styles.lastRefreshText}>
+            Last updated: {lastRefreshTime.toLocaleTimeString()}
+          </Text>
+        )}
       </View>
 
       {/* Tabs */}
@@ -298,7 +357,20 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
       </View>
 
       {/* Tab Content */}
-      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.tabContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isPullRefreshing}
+            onRefresh={handlePullToRefresh}
+            colors={['#3B82F6']}
+            tintColor="#3B82F6"
+            title="Pull to refresh"
+            titleColor="#3B82F6"
+          />
+        }
+      >
         {loading ? (
           <Text style={styles.loadingText}>Loading requests...</Text>
         ) : activeTab === 'incoming' ? (
@@ -331,46 +403,73 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
           </Text>
         </TouchableOpacity>
       </View>
-      {notifications.length === 0 ? (
-        <Text style={styles.emptyText}>No notifications</Text>
-      ) : (
-        notifications.map(n => (
-          <TouchableOpacity
-            key={n.id}
-            style={[styles.notificationItem, !n.is_read && styles.unreadNotification]}
-            onPress={() => handleNotificationClick(n)}
-          >
-            <Text style={[styles.notificationText, !n.is_read && styles.unreadText]}>
-              {n.message}
-            </Text>
-            <Text style={styles.notificationTime}>
-              {new Date(n.created_at).toLocaleString()}
-            </Text>
-          </TouchableOpacity>
-        ))
-      )}
+      <ScrollView 
+        style={styles.notificationsList}
+        refreshControl={
+          <RefreshControl
+            refreshing={isPullRefreshing}
+            onRefresh={handlePullToRefresh}
+            colors={['#3B82F6']}
+            tintColor="#3B82F6"
+            title="Pull to refresh"
+            titleColor="#3B82F6"
+          />
+        }
+      >
+        {notifications.length === 0 ? (
+          <Text style={styles.emptyText}>No notifications</Text>
+        ) : (
+          notifications.map(n => (
+            <TouchableOpacity
+              key={n.id}
+              style={[styles.notificationItem, !n.is_read && styles.unreadNotification]}
+              onPress={() => handleNotificationClick(n)}
+            >
+              <Text style={[styles.notificationText, !n.is_read && styles.unreadText]}>
+                {n.message}
+              </Text>
+              <Text style={styles.notificationTime}>
+                {new Date(n.created_at).toLocaleString()}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Seller Dashboard</Text>
-        <View style={styles.notificationButton}>
+        <View style={styles.headerRight}>
           <TouchableOpacity
-            style={styles.bellButton}
-            onPress={() => setShowNotifications(!showNotifications)}
+            style={styles.refreshButton}
+            onPress={handlePullToRefresh}
+            disabled={isPullRefreshing}
           >
-            <Ionicons name="notifications" size={24} color="#374151" />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount}</Text>
-              </View>
-            )}
+            <Ionicons 
+              name="refresh" 
+              size={20} 
+              color={isPullRefreshing ? '#9CA3AF' : '#3B82F6'} 
+            />
           </TouchableOpacity>
-          {showNotifications && renderNotifications()}
+          <View style={styles.notificationButton}>
+            <TouchableOpacity
+              style={styles.bellButton}
+              onPress={() => setShowNotifications(!showNotifications)}
+            >
+              <Ionicons name="notifications" size={24} color="#374151" />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            {showNotifications && renderNotifications()}
+          </View>
         </View>
       </View>
 
@@ -382,109 +481,125 @@ const SellerDashboard = ({ navigation, route }: SellerDashboardProps) => {
         visible={showRequestModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowRequestModal(false)}
+        onRequestClose={() => {
+          setShowRequestModal(false);
+          Keyboard.dismiss();
+        }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.requestModalContent}>
-            <View style={styles.requestModalHeader}>
-              <Text style={styles.requestModalTitle}>Request Details</Text>
-              <TouchableOpacity
-                onPress={() => setShowRequestModal(false)}
-                style={styles.closeButton}
+        <TouchableWithoutFeedback onPress={() => {
+          setShowRequestModal(false);
+          Keyboard.dismiss();
+        }}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ width: '100%' }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            
-            {selectedRequest && (
-              <View style={styles.requestDetails}>
-                <View style={styles.requestDetailItem}>
-                  <Text style={styles.requestDetailLabel}>Item Name</Text>
-                  <Text style={styles.requestDetailValue}>{selectedRequest.itemName}</Text>
-                </View>
-                
-                <View style={styles.requestDetailItem}>
-                  <Text style={styles.requestDetailLabel}>Date</Text>
-                  <Text style={styles.requestDetailValue}>
-                    {new Date(selectedRequest.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
-                
-                <View style={styles.requestDetailItem}>
-                  <Text style={styles.requestDetailLabel}>Time</Text>
-                  <Text style={styles.requestDetailValue}>
-                    {new Date(selectedRequest.created_at).toLocaleTimeString()}
-                  </Text>
-                </View>
-                
-                <View style={styles.requestDetailItem}>
-                  <Text style={styles.requestDetailLabel}>Pincode</Text>
-                  <Text style={styles.requestDetailValue}>{selectedRequest.pincode || 'N/A'}</Text>
-                </View>
-                
-                <View style={styles.requestDetailItem}>
-                  <Text style={styles.requestDetailLabel}>Notes</Text>
-                  {selectedRequest.status === 'incoming' || selectedRequest.status === 'accepted' ? (
-                    <TextInput
-                      style={styles.notesInput}
-                      value={requestNotes}
-                      onChangeText={setRequestNotes}
-                      placeholder="Add a note for the buyer..."
-                      multiline
-                      numberOfLines={4}
-                      textAlignVertical="top"
-                    />
-                  ) : (
-                    <Text style={styles.requestDetailValue}>
-                      {requestNotes || 'No notes provided.'}
-                    </Text>
+                <View style={styles.requestModalContent}>
+                  <View style={styles.requestModalHeader}>
+                    <Text style={styles.requestModalTitle}>Request Details</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowRequestModal(false)}
+                      style={styles.closeButton}
+                    >
+                      <Ionicons name="close" size={24} color="#6B7280" />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {selectedRequest && (
+                    <ScrollView style={styles.requestDetails} showsVerticalScrollIndicator={false}>
+                      <View style={styles.requestDetailItem}>
+                        <Text style={styles.requestDetailLabel}>Item Name</Text>
+                        <Text style={styles.requestDetailValue}>{selectedRequest.itemName}</Text>
+                      </View>
+                      
+                      <View style={styles.requestDetailItem}>
+                        <Text style={styles.requestDetailLabel}>Date</Text>
+                        <Text style={styles.requestDetailValue}>
+                          {new Date(selectedRequest.created_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.requestDetailItem}>
+                        <Text style={styles.requestDetailLabel}>Time</Text>
+                        <Text style={styles.requestDetailValue}>
+                          {new Date(selectedRequest.created_at).toLocaleTimeString()}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.requestDetailItem}>
+                        <Text style={styles.requestDetailLabel}>Pincode</Text>
+                        <Text style={styles.requestDetailValue}>{selectedRequest.pincode || 'N/A'}</Text>
+                      </View>
+                      
+                      <View style={[styles.requestDetailItem, styles.notesSection]}>
+                        <Text style={styles.requestDetailLabel}>Notes</Text>
+                        {selectedRequest.status === 'incoming' || selectedRequest.status === 'accepted' ? (
+                          <TextInput
+                            style={styles.notesInput}
+                            value={requestNotes}
+                            onChangeText={setRequestNotes}
+                            placeholder="Add a note for the buyer..."
+                            multiline
+                            numberOfLines={4}
+                            textAlignVertical="top"
+                          />
+                        ) : (
+                          <Text style={styles.requestDetailValue}>
+                            {requestNotes || 'No notes provided.'}
+                          </Text>
+                        )}
+                      </View>
+                    </ScrollView>
                   )}
+                  
+                  <View style={styles.requestModalButtons}>
+                    {selectedRequest?.status === 'incoming' ? (
+                      <TouchableOpacity
+                        style={[styles.requestModalButton, styles.acceptButton, isSubmitting && styles.disabledButton]}
+                        onPress={handleAcceptRequest}
+                        disabled={isSubmitting}
+                      >
+                        <Text style={styles.requestModalButtonText}>
+                          {isSubmitting ? 'Accepting...' : 'Accept'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : selectedRequest?.status === 'accepted' ? (
+                      <>
+                        <TouchableOpacity
+                          style={[styles.requestModalButton, styles.cancelButton]}
+                          onPress={() => setShowRequestModal(false)}
+                          disabled={isSubmitting}
+                        >
+                          <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.requestModalButton, styles.updateButton, isSubmitting && styles.disabledButton]}
+                          onPress={handleUpdateRequest}
+                          disabled={isSubmitting}
+                        >
+                          <Text style={styles.requestModalButtonText}>
+                            {isSubmitting ? 'Updating...' : 'Update'}
+                          </Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.requestModalButton}
+                        onPress={() => setShowRequestModal(false)}
+                      >
+                        <Text style={styles.requestModalButtonText}>Close</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
-              </View>
-            )}
-            
-            <View style={styles.requestModalButtons}>
-              {selectedRequest?.status === 'incoming' ? (
-                <TouchableOpacity
-                  style={[styles.requestModalButton, styles.acceptButton, isSubmitting && styles.disabledButton]}
-                  onPress={handleAcceptRequest}
-                  disabled={isSubmitting}
-                >
-                  <Text style={styles.requestModalButtonText}>
-                    {isSubmitting ? 'Accepting...' : 'Accept'}
-                  </Text>
-                </TouchableOpacity>
-              ) : selectedRequest?.status === 'accepted' ? (
-                <>
-                  <TouchableOpacity
-                    style={[styles.requestModalButton, styles.cancelButton]}
-                    onPress={() => setShowRequestModal(false)}
-                    disabled={isSubmitting}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.requestModalButton, styles.updateButton, isSubmitting && styles.disabledButton]}
-                    onPress={handleUpdateRequest}
-                    disabled={isSubmitting}
-                  >
-                    <Text style={styles.requestModalButtonText}>
-                      {isSubmitting ? 'Updating...' : 'Update'}
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity
-                  style={styles.requestModalButton}
-                  onPress={() => setShowRequestModal(false)}
-                >
-                  <Text style={styles.requestModalButtonText}>Close</Text>
-                </TouchableOpacity>
-              )}
+              </KeyboardAvoidingView>
+              </TouchableWithoutFeedback>
             </View>
-          </View>
-        </View>
-      </Modal>
+          </TouchableWithoutFeedback>
+        </Modal>
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
@@ -545,11 +660,21 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingTop: 40,
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     position: 'relative',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   headerTitle: {
     fontSize: 20,
@@ -557,8 +682,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   notificationButton: {
-    position: 'absolute',
-    right: 16,
+    // Removed absolute positioning since it's now in headerRight
   },
   bellButton: {
     padding: 4,
@@ -595,6 +719,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     zIndex: 1000,
+  },
+  notificationsList: {
+    maxHeight: 320,
   },
   notificationsHeader: {
     flexDirection: 'row',
@@ -651,6 +778,12 @@ const styles = StyleSheet.create({
   welcomeSubtitle: {
     fontSize: 16,
     color: '#6B7280',
+  },
+  lastRefreshText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -764,14 +897,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingHorizontal: 16,
   },
   requestModalContent: {
     backgroundColor: '#FFFFFF',
     padding: 20,
-    borderRadius: 10,
-    width: '80%',
-    maxHeight: '80%',
+    borderRadius: 12,
+    width: '95%',
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   requestModalHeader: {
     flexDirection: 'row',
@@ -789,25 +928,36 @@ const styles = StyleSheet.create({
   },
   requestDetails: {
     marginBottom: 20,
+    maxHeight: 350,
   },
   requestDetailItem: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
   requestDetailLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#111827',
+    marginBottom: 4,
   },
   requestDetailValue: {
     fontSize: 14,
     color: '#6B7280',
   },
+  notesSection: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
   notesInput: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 4,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
     padding: 12,
+    marginTop: 8,
     marginBottom: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    backgroundColor: '#FFFFFF',
+    fontSize: 14,
   },
   requestModalButtons: {
     flexDirection: 'row',
