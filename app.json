@@ -9,7 +9,12 @@
     "splash": {
       "image": "./fikloLogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#ffffff",
+      "dark": {
+        "image": "./fikloLogo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000"
+      }
     },
     "assetBundlePatterns": [
       "**/*"
@@ -31,7 +36,9 @@
     "web": {
       "favicon": "./public/favicon.ico"
     },
-    "plugins": [],
+    "plugins": [
+      "expo-splash-screen"
+    ],
     "extra": {
       "eas": {
         "projectId": "5530d726-4651-4b1d-8c4f-0d5eb8e7a521"
