@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar, BackHandler, Alert } from 'react-native';
@@ -11,6 +11,7 @@ import SellerSetup from './components/SellerSetupRN';
 import ProfilePage from './components/ProfilePageRN';
 import BuyerRequestsListPage from './components/BuyerRequestsListPageRN';
 import BuyerRequestDetailsPage from './components/BuyerRequestDetailsPageRN';
+import CustomSplashScreen from './components/CustomSplashScreen';
 
 // You'll need to create LoginPageRN as well
 // import LoginPage from './LoginPageRN';
@@ -31,6 +32,11 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 const App = () => {
   const navigationRef = useRef<any>(null);
+  const [isSplashVisible, setIsSplashVisible] = useState(true);
+
+  const handleSplashFinish = () => {
+    setIsSplashVisible(false);
+  };
 
   useEffect(() => {
     const backAction = () => {
@@ -73,6 +79,10 @@ const App = () => {
 
     return () => backHandler.remove();
   }, []);
+
+  if (isSplashVisible) {
+    return <CustomSplashScreen onFinish={handleSplashFinish} />;
+  }
 
   return (
     <NavigationContainer ref={navigationRef}>
