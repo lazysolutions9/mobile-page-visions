@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Mobile Page Visions",
+    "slug": "mobile-page-visions",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./fikloLogo.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./fikloLogo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./fikloLogo.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./public/favicon.ico"
+    },
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "5530d726-4651-4b1d-8c4f-0d5eb8e7a521"
+      }
+    },
+    "owner": "lazysolutions9",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5530d726-4651-4b1d-8c4f-0d5eb8e7a521"
+    }
+  }
+}
