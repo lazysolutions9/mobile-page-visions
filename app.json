@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Mobile Page Visions",
+    "name": "FIKLO - Find it Closer",
     "slug": "mobile-page-visions",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,13 +15,18 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lazysolutions9.mobilepagevisions",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./fikloLogo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.lazysolutions9.mobilepagevisions"
     },
     "web": {
       "favicon": "./public/favicon.ico"
